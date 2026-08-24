@@ -44,12 +44,11 @@
     background: var(--bg);
     z-index: 20;
   }
-  .header-left { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  .header-left { display: flex; flex-direction: column; align-items: flex-start; gap: 0.7rem; min-width: 0; }
   header h1 { font-size: 1.3rem; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; }
   header h1 em { font-style: normal; color: var(--accent); }
   .global-search {
-    position: absolute; left: 50%; transform: translateX(-50%);
-    width: min(520px, 42vw); display: flex; align-items: center; gap: 0.6rem;
+    position: relative; width: min(520px, 48vw); display: flex; align-items: center; gap: 0.6rem;
   }
   .global-search label { color: var(--accent); font-family: system-ui, sans-serif; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
   .global-search input {
@@ -62,7 +61,7 @@
   .global-search .search-suggestions { position: absolute; top: calc(100% + 0.35rem); left: 3.9rem; right: 0; }
   #subtitle { font-size: 0.78rem; color: var(--muted); font-family: system-ui, sans-serif; }
   @media (max-width: 700px) {
-    .global-search { position: static; transform: none; order: 3; width: 100%; }
+    .global-search { width: 100%; }
   }
 
   /* ── Layout ── */
@@ -404,11 +403,11 @@
 <header>
   <div class="header-left">
     <h1>ARCA · <em>Buscador por filtros</em></h1>
-  </div>
-  <div class="global-search">
-    <label for="search-obras">Buscar</label>
-    <input type="search" id="search-obras" class="filter-search" placeholder="Busca por título, autor, símbolo, personaje, fecha..." autocomplete="off">
-    <div class="search-suggestions" id="search-suggestions"></div>
+    <div class="global-search">
+      <label for="search-obras">Buscar</label>
+      <input type="search" id="search-obras" class="filter-search" placeholder="Busca por título, autor, símbolo, personaje, fecha..." autocomplete="off">
+      <div class="search-suggestions" id="search-suggestions"></div>
+    </div>
   </div>
   <span id="debug-error" style="color:#e55; font-size:0.7rem; font-family:monospace"></span>
 </header>
@@ -689,6 +688,11 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     gesto3:              { collection:'gestos',              label:'Gesto nivel 3',                group:'gestos' },
     complejo_gestual:    { collection:'complejos_gestuales', label:'Complejo gestual',             group:'gestos' },
   };
+  const GROUP_FIELDS = {
+    basicos: ['pais','ciudad','ubicacion','ciudad_origen','categoria1','categoria2','categoria3','categoria4','categoria5','categoria6','autores','tecnicas','fecha'],
+    analisis: ['simbolos','caracteristicas','escenarios','objetos','relato_visual','donante','cartela_filacteria','descriptores','personajes'],
+    gestos: ['fisiognomica','fisiognomica_imagen','rostro','tipo_gestual','gesto1','gesto2','gesto3','complejo_gestual'],
+  };
 
   const REF_QUERIES = {
     paises:               'id,nombre',
@@ -731,6 +735,7 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
   let offset = 0;
   let currentTotal = 0;
   let reqSeq = 0;
+  const facetCounts = {};
 
   // ── Helpers ──────────────────────────────────────────────────────
   const norm = s => (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -767,8 +772,8 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
       .map(item => item.id);
   }
 
-  function buildSearchOr(query) {
-    const q = query.trim();
+  function buildSearchTermOr(term) {
+    const q = term.trim();
     if (!q) return [];
     const or = [
       { titulo: { _icontains: q } },
@@ -797,6 +802,13 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     return or;
   }
 
+  function buildSearchFilter(query) {
+    const terms = query.trim().split(/\s+/).filter(Boolean);
+    const termFilters = terms.map(term => ({ _or: buildSearchTermOr(term) }));
+    if (!termFilters.length) return null;
+    return termFilters.length === 1 ? termFilters[0] : { _and: termFilters };
+  }
+
   // ── Directus filter builder ──────────────────────────────────────
   function buildFilter(excludeKeys = []) {
     const ex = new Set(excludeKeys);
@@ -807,7 +819,7 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     });
     M2M_FIELDS.forEach(f => {
       if (!ex.has(f) && state[f].length) {
-        and.push({ [f]: { [f + '_id']: { _in: state[f] } } });
+        state[f].forEach(id => and.push({ [f]: { [f + '_id']: { _eq: id } } }));
       }
     });
     if (!ex.has('ciudad_origen') && !state.ciudad_origen && state.origenPaisUI) {
@@ -824,7 +836,8 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
       }
     }
     if (!ex.has('searchTitle') && state.searchTitle) {
-      and.push({ _or: buildSearchOr(state.searchTitle) });
+      const searchFilter = buildSearchFilter(state.searchTitle);
+      if (searchFilter) and.push(searchFilter);
     }
     return and.length ? { _and: and } : {};
   }
@@ -1123,6 +1136,23 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     }
   }
 
+  async function refreshChecklistCounts(field) {
+    const meta = FACET_META[field];
+    let counts;
+    try { counts = await fetchGroupCounts(field, hierarchyExclusions(meta.group, field)); } catch { return; }
+    facetCounts[field] = counts;
+    const box = document.querySelector(`[data-facet="${field}"] .checklist`);
+    if (!box) return;
+    box.querySelectorAll('label').forEach(label => {
+      const input = label.querySelector('input');
+      const count = counts[input.value] || 0;
+      const countEl = label.querySelector('.n');
+      if (countEl) countEl.textContent = count;
+      input.disabled = count === 0 && !input.checked;
+      label.style.opacity = input.disabled ? '0.45' : '';
+    });
+  }
+
   // ── Ubicación actual (país → ciudad → ubicación), bidirectional ──
   const selPais = document.getElementById('sel-pais');
   const selCiudad = document.getElementById('sel-ciudad');
@@ -1376,6 +1406,12 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     return '';
   }
 
+  function hierarchyExclusions(group, field) {
+    const groups = ['basicos', 'analisis', 'gestos'];
+    const index = groups.indexOf(group);
+    return [field, ...groups.slice(index + 1).flatMap(g => GROUP_FIELDS[g])];
+  }
+
   // ── Orchestration ─────────────────────────────────────────────────
   let debounceTimer;
   function onFilterChanged() {
@@ -1531,27 +1567,29 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     document.querySelectorAll('.facet-group.open').forEach(group => {
       const g = group.dataset.group;
       if (g === 'basicos') {
-        refreshSelectCounts(selPais, 'pais', ['pais','ciudad','ubicacion'], true);
-        refreshSelectCounts(selCiudad, 'ciudad', ['ciudad','ubicacion'], true);
-        refreshSelectCounts(selUbicacion, 'ubicacion', ['ubicacion'], true);
+        refreshSelectCounts(selPais, 'pais', hierarchyExclusions('basicos', 'pais'), true);
+        refreshSelectCounts(selCiudad, 'ciudad', hierarchyExclusions('basicos', 'ciudad'), true);
+        refreshSelectCounts(selUbicacion, 'ubicacion', hierarchyExclusions('basicos', 'ubicacion'), true);
         refreshOrigenPaisCounts();
-        refreshSelectCounts(selCiudadOrigen, 'ciudad_origen', ['ciudad_origen'], true);
-        for (let l = 0; l <= 5; l++) refreshSelectCounts(catSelects[l], catField(l), [catField(l)], true);
+        refreshSelectCounts(selCiudadOrigen, 'ciudad_origen', hierarchyExclusions('basicos', 'ciudad_origen'), true);
+        for (let l = 0; l <= 5; l++) refreshSelectCounts(catSelects[l], catField(l), hierarchyExclusions('basicos', catField(l)), true);
+        ['tecnicas'].forEach(f => refreshChecklistCounts(f));
       }
       if (g === 'analisis') {
         ['relato_visual','donante','cartela_filacteria'].forEach(f =>
-          refreshSelectCounts(fkSelectEls[f], f, [f]));
+          refreshSelectCounts(fkSelectEls[f], f, hierarchyExclusions('analisis', f)));
+        ['simbolos','caracteristicas','escenarios','objetos','descriptores','personajes'].forEach(refreshChecklistCounts);
       }
       if (g === 'gestos') {
         ['fisiognomica','fisiognomica_imagen','rostro','tipo_gestual','gesto1','gesto2','gesto3','complejo_gestual'].forEach(f =>
-          refreshSelectCounts(fkSelectEls[f], f, [f], true));
+          refreshSelectCounts(fkSelectEls[f], f, hierarchyExclusions('gestos', f), true));
       }
     });
   }
 
   async function refreshOrigenPaisCounts() {
     let counts;
-    try { counts = await fetchGroupCounts('ciudad_origen', ['ciudad_origen']); } catch { return; }
+    try { counts = await fetchGroupCounts('ciudad_origen', hierarchyExclusions('basicos', 'ciudad_origen')); } catch { return; }
     const byCountry = {};
     Object.entries(counts).forEach(([cid, n]) => {
       const c = maps.ciudades[cid];
