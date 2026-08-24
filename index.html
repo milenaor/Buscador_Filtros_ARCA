@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARCA Buscador con filtros</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1c1c0c;
+    --border: #252525;
+    --accent: #c9a84c;
+    --accent-dim: rgba(201,168,76,0.25);
+    --text: #e2e2e2;
+    --muted: #777;
+    --muted2: #555;
+    --card-hover: #1e1e1e;
+    --danger: #b5544a;
+    --basicos: #c9a84c;
+    --analisis: #5b9dd9;
+    --gestos: #6ebf7d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', serif;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); }
+
+  /* ── Header ── */
+  header {
+    padding: 1.4rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 20;
+  }
+  .header-left { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  header h1 { font-size: 1.3rem; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; }
+  header h1 em { font-style: normal; color: var(--accent); }
+  .global-search {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    width: min(520px, 42vw); display: flex; align-items: center; gap: 0.6rem;
+  }
+  .global-search label { color: var(--accent); font-family: system-ui, sans-serif; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+  .global-search input {
+    width: 100%; background: var(--surface); border: 1px solid var(--accent); color: var(--text);
+    padding: 0.6rem 0.75rem; border-radius: 3px; font-family: system-ui, sans-serif; font-size: 0.88rem;
+    box-shadow: 0 0 0 2px var(--accent-dim);
+  }
+  .global-search input:focus { outline: 1px solid var(--accent); }
+  .global-search input::placeholder { color: var(--muted); }
+  .global-search .search-suggestions { position: absolute; top: calc(100% + 0.35rem); left: 3.9rem; right: 0; }
+  #subtitle { font-size: 0.78rem; color: var(--muted); font-family: system-ui, sans-serif; }
+  @media (max-width: 700px) {
+    .global-search { position: static; transform: none; order: 3; width: 100%; }
+  }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr 360px;
+    grid-template-areas: "filters grid viz";
+    align-items: start;
+  }
+  @media (max-width: 1300px) {
+    .layout { grid-template-columns: 340px 1fr; grid-template-areas: "filters grid" "viz viz"; }
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; grid-template-areas: "filters" "grid" "viz"; }
+  }
+
+  /* ── Filters panel ── */
+  .filters-panel {
+    grid-area: filters;
+    border-right: 1px solid var(--border);
+    padding: 1rem 1.1rem 3rem;
+    position: sticky;
+    top: 68px;
+    max-height: calc(100vh - 68px);
+    overflow-y: auto;
+    font-family: system-ui, sans-serif;
+  }
+  @media (max-width: 900px) { .filters-panel { position: static; max-height: none; border-right: none; border-bottom: 1px solid var(--border); } }
+
+  /* ── Visualizations panel ── */
+  .viz-panel {
+    grid-area: viz;
+    border-left: 1px solid var(--border);
+    padding: 1rem 1.2rem 3rem;
+    position: sticky;
+    top: 68px;
+    max-height: calc(100vh - 68px);
+    overflow-y: auto;
+    font-family: system-ui, sans-serif;
+    transition: opacity 0.15s;
+  }
+  .viz-panel.loading { opacity: 0.55; }
+  @media (max-width: 1300px) {
+    .viz-panel { position: static; max-height: none; border-left: none; border-top: 1px solid var(--border); }
+  }
+  .viz-header { margin-bottom: 0.9rem; }
+  .viz-header span { font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .viz-subtitle { font-size: 0.68rem; color: var(--muted2); line-height: 1.4; margin-top: 0.3rem; }
+  .viz-card { margin-bottom: 1.4rem; }
+  .viz-card h3 {
+    font-size: 0.72rem; font-weight: 400; color: var(--muted); letter-spacing: 0.03em;
+    margin-bottom: 0.6rem; text-transform: none;
+  }
+  .viz-empty { font-size: 0.72rem; color: var(--muted2); padding: 0.4rem 0; }
+  .viz-intro { font-size: 0.7rem; color: var(--muted2); line-height: 1.45; margin-bottom: 0.9rem; }
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .kpi-tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    padding: 0.65rem 0.7rem;
+  }
+  .kpi-tile.wide { grid-column: 1 / -1; }
+  .kpi-value {
+    font-family: system-ui, sans-serif; font-size: 1.4rem; font-weight: 600;
+    color: var(--accent); line-height: 1.15;
+  }
+  .kpi-label { font-size: 0.66rem; color: var(--muted); margin-top: 0.3rem; line-height: 1.3; }
+  .bar-row { position: relative; margin-bottom: 4px; }
+  .bar-row-label {
+    display: flex; justify-content: space-between; gap: 0.5rem;
+    font-size: 0.68rem; color: var(--text); margin-bottom: 2px;
+    white-space: nowrap; overflow: hidden;
+  }
+  .bar-row-label .name { overflow: hidden; text-overflow: ellipsis; }
+  .bar-row-label .val { color: var(--muted); flex: none; font-variant-numeric: tabular-nums; }
+  .bar-track {
+    height: 10px; border-radius: 5px; background: var(--surface);
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+    transition: filter 0.1s;
+  }
+  .bar-row:hover .bar-fill { filter: brightness(1.15); }
+  .bar-row:hover .bar-track { border-color: var(--accent); }
+  .viz-tooltip {
+    position: fixed; pointer-events: none; z-index: 50;
+    background: var(--surface2); border: 1px solid var(--accent);
+    color: var(--text); font-size: 0.7rem; font-family: system-ui, sans-serif;
+    padding: 0.3rem 0.55rem; border-radius: 3px; display: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+  }
+  .viz-tooltip strong { color: var(--accent); }
+
+  .filters-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; }
+  .filters-header span { font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .search-panel {
+    display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.8rem;
+  }
+  .filter-search {
+    width: 100%; max-width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 0.45rem 0.6rem; border-radius: 3px;
+    font-family: system-ui, sans-serif; font-size: 0.82rem;
+  }
+  .filter-search::placeholder { color: var(--muted2); }
+  .search-suggestions {
+    display: none; position: relative; max-height: 220px; overflow-y: auto;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 3px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.35); z-index: 10;
+  }
+  .search-suggestions.show { display: block; }
+  .search-suggestions div {
+    padding: 0.55rem 0.7rem; cursor: pointer; font-size: 0.78rem; color: var(--text);
+  }
+  .search-suggestions div:hover { background: var(--card-hover); color: var(--accent); }
+  .search-suggestions .empty {
+    color: var(--muted2); cursor: default;
+  }
+  .filter-search::placeholder { color: var(--muted2); }
+  .reset-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    font-size: 0.68rem; padding: 0.25rem 0.6rem; border-radius: 3px; cursor: pointer;
+    font-family: system-ui, sans-serif; letter-spacing: 0.05em;
+  }
+  .reset-btn:hover { color: var(--danger); border-color: var(--danger); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.9rem; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    background: var(--accent-dim); color: var(--accent);
+    border-radius: 20px; padding: 0.2rem 0.55rem 0.2rem 0.7rem;
+    font-size: 0.7rem;
+  }
+  .chip button {
+    background: none; border: none; color: var(--accent); cursor: pointer;
+    font-size: 0.8rem; line-height: 1; padding: 0;
+  }
+
+  .facet-group { border-bottom: 1px solid var(--border); margin-bottom: 0.4rem; }
+  .group-toggle {
+    width: 100%; background: none; border: none; color: var(--text);
+    text-align: left; padding: 0.65rem 0.1rem 0.65rem 1.8rem; cursor: pointer;
+    font-size: 0.82rem; letter-spacing: 0.04em; font-family: system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative;
+  }
+  .group-toggle::before {
+    content: '↓'; position: absolute; left: 0.35rem; top: 50%; transform: translateY(-50%);
+    color: var(--muted2); font-size: 1rem;
+  }
+  .group-basicos .group-toggle::before { color: var(--basicos); }
+  .group-analisis .group-toggle::before { color: var(--analisis); }
+  .group-gestos .group-toggle::before { color: var(--gestos); }
+  .group-basicos .group-toggle { border-left: 4px solid var(--basicos); }
+  .group-analisis .group-toggle { border-left: 4px solid var(--analisis); }
+  .group-gestos .group-toggle { border-left: 4px solid var(--gestos); }
+  .group-toggle .grp-count { color: var(--accent); font-size: 0.7rem; margin-left: 0.4rem; }
+  .chev { color: var(--muted); transition: transform 0.15s; font-size: 0.7rem; }
+  .facet-group.open .chev { transform: rotate(180deg); }
+  .group-body { display: none; padding-bottom: 0.6rem; }
+  .facet-group.open .group-body { display: block; }
+  .facet-hint {
+    display: flex; align-items: flex-start; gap: 0.3rem;
+    font-size: 0.66rem; color: var(--muted2); font-family: system-ui, sans-serif;
+    line-height: 1.35; margin: -0.15rem 0 0.35rem;
+  }
+  .facet-hint svg { flex: none; width: 11px; height: 11px; margin-top: 0.15rem; opacity: 0.8; }
+
+  .facet { margin-bottom: 1rem; }
+  .facet > label, .facet-cascade > label {
+    display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 0.3rem;
+    letter-spacing: 0.03em;
+  }
+  .facet-cascade-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.9rem;
+    align-items: start;
+  }
+  .facet-cascade-grid > div {
+    display: grid;
+  }
+  .facet-cascade-grid > div > label {
+    display: block; font-size: 0.68rem; color: var(--muted2); margin-bottom: 0.25rem;
+    letter-spacing: 0.03em;
+  }
+  .facet select, .facet input[type=number], .facet input[type=text] {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 0.4rem 0.5rem; border-radius: 3px; font-size: 0.78rem;
+    font-family: system-ui, sans-serif; margin-bottom: 0.35rem;
+  }
+  .facet select:focus, .facet input:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  .facet select option { color: var(--text); background: var(--surface); }
+  .facet select option.zero { color: var(--muted2); }
+
+  .range-slider { position: relative; height: 30px; margin: 0.5rem 0 0.2rem; }
+  .range-values {
+    display: flex; justify-content: space-between; font-size: 0.72rem;
+    color: var(--accent); font-family: system-ui, sans-serif; margin-bottom: 0.4rem;
+  }
+  .range-track {
+    position: absolute; top: 13px; left: 0; right: 0; height: 4px;
+    border-radius: 999px; background: var(--border);
+  }
+  .range-fill {
+    position: absolute; top: 0; height: 4px; border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  }
+  .range-slider input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    position: absolute; top: 5px; left: 0; width: 100%; height: 16px;
+    margin: 0; background: transparent; pointer-events: none;
+  }
+  .range-slider input[type=range]::-webkit-slider-runnable-track { background: transparent; height: 16px; }
+  .range-slider input[type=range]::-moz-range-track { background: transparent; height: 16px; border: none; }
+  .range-slider input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; pointer-events: auto;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--accent);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5); cursor: pointer;
+  }
+  .range-slider input[type=range]::-moz-range-thumb {
+    pointer-events: auto; width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--accent);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5); cursor: pointer;
+  }
+  .range-slider input#range-hasta { z-index: 2; }
+
+  .typeahead-list {
+    max-height: 190px; overflow-y: auto; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 3px; display: none;
+  }
+  .typeahead-list.show { display: block; }
+  .typeahead-list div {
+    padding: 0.35rem 0.55rem; font-size: 0.75rem; cursor: pointer;
+    display: flex; justify-content: space-between; gap: 0.5rem;
+  }
+  .typeahead-list div:hover { background: var(--card-hover); color: var(--accent); }
+  .typeahead-list .n { color: var(--muted2); font-size: 0.68rem; white-space: nowrap; }
+
+  .chips-mini { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+  .chips-mini .chip { background: var(--surface2); color: var(--text); }
+
+  .checklist {
+    max-height: 170px; overflow-y: auto; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 3px; padding: 0.3rem 0.5rem;
+  }
+  .checklist label {
+    display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem;
+    padding: 0.2rem 0; cursor: pointer; color: var(--text) !important;
+  }
+  .checklist .n { margin-left: auto; color: var(--muted2); font-size: 0.68rem; }
+
+  .geo-link { font-size: 0.7rem; }
+  .geo-link a { text-decoration: none; }
+
+  /* ── Results panel ── */
+  .results-panel { grid-area: grid; padding: 1.2rem 1.6rem 3rem; min-width: 0; }
+  .results-stats {
+    font-size: 0.8rem; color: var(--muted); font-family: system-ui, sans-serif;
+    margin-bottom: 1rem; letter-spacing: 0.03em;
+  }
+  .results-stats strong { color: var(--accent); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(var(--grid-columns, 4), minmax(0, 1fr));
+    gap: 1.1rem;
+  }
+  @media (max-width: 700px) { .grid { grid-template-columns: repeat(min(var(--grid-columns, 4), 2), minmax(0, 1fr)); } }
+  @media (max-width: 430px) { .grid { grid-template-columns: 1fr; } }
+  .results-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+  .results-toolbar .results-stats { margin-bottom: 0; }
+  .grid-zoom { display: flex; align-items: center; gap: 0.35rem; font-family: system-ui, sans-serif; }
+  .grid-zoom button {
+    width: 2rem; height: 2rem; background: transparent; border: 1px solid var(--border); color: var(--accent);
+    border-radius: 3px; cursor: pointer; font-size: 1.1rem; line-height: 1;
+  }
+  .grid-zoom button:hover { background: var(--accent); color: #000; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    overflow: hidden; cursor: pointer; transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+  }
+  .card:hover { background: var(--card-hover); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+  .card-img, .card-img-placeholder {
+    width: 100%; aspect-ratio: 1; object-fit: cover; background: #1a1a1a; display: block;
+  }
+  .card-img-placeholder { display: flex; align-items: center; justify-content: center; color: #333; font-size: 2rem; }
+  .card-id { font-size: 0.64rem; color: var(--muted2); font-family: system-ui, sans-serif; margin-top: 0.2rem; }
+  .card-body { padding: 0.65rem 0.7rem; }
+  .card-title {
+    font-size: 0.78rem; line-height: 1.4; margin-bottom: 0.3rem;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-meta { font-size: 0.68rem; color: var(--accent); font-family: system-ui, sans-serif; }
+  .card-meta2 { font-size: 0.66rem; color: var(--muted); font-family: system-ui, sans-serif; }
+
+  .loading-msg, .empty-msg {
+    grid-column: 1/-1; text-align: center; padding: 4rem 0; color: var(--muted);
+    font-size: 0.85rem; letter-spacing: 0.06em; font-family: system-ui, sans-serif;
+  }
+
+  .load-more-wrap { text-align: center; padding: 1.5rem 0; }
+  .load-more-btn {
+    background: transparent; color: var(--accent); border: 1px solid var(--accent);
+    padding: 0.5rem 1.8rem; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase;
+    cursor: pointer; border-radius: 2px; font-family: system-ui, sans-serif;
+  }
+  .load-more-btn:hover:not(:disabled) { background: var(--accent); color: #000; }
+  .load-more-btn:disabled { opacity: 0.35; cursor: default; }
+
+  /* ── Modal ── */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    z-index: 50; align-items: center; justify-content: center; padding: 2rem;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    max-width: 780px; width: 100%; max-height: 88vh; overflow-y: auto;
+    padding: 1.6rem; position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 0.8rem; right: 1rem; background: none; border: none;
+    color: var(--muted); font-size: 1.3rem; cursor: pointer;
+  }
+  .modal-close:hover { color: var(--accent); }
+  .modal img { width: 100%; max-height: 340px; object-fit: contain; background: #000; border-radius: 4px; margin-bottom: 1rem; }
+  .modal h2 { font-size: 1.15rem; font-weight: 400; margin-bottom: 0.6rem; }
+  .modal .sintesis { font-size: 0.85rem; color: var(--text); line-height: 1.5; margin-bottom: 1rem; }
+  .modal dl { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.9rem; font-family: system-ui, sans-serif; font-size: 0.78rem; }
+  .modal dt { color: var(--muted); }
+  .modal dd { color: var(--text); }
+  .modal .loading-msg { padding: 2rem 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>ARCA · <em>Buscador por filtros</em></h1>
+  </div>
+  <div class="global-search">
+    <label for="search-obras">Buscar</label>
+    <input type="search" id="search-obras" class="filter-search" placeholder="Busca por título, autor, símbolo, personaje, fecha..." autocomplete="off">
+    <div class="search-suggestions" id="search-suggestions"></div>
+  </div>
+  <span id="debug-error" style="color:#e55; font-size:0.7rem; font-family:monospace"></span>
+</header>
+
+<div class="layout">
+  <aside class="filters-panel" id="filters-panel">
+    <div class="filters-header">
+      <span>Filtros</span>
+      <button class="reset-btn" id="reset-btn">Reiniciar todo</button>
+    </div>
+    <div class="chips" id="chips"></div>
+
+    <!-- ─────────── DATOS BÁSICOS ─────────── -->
+    <section class="facet-group group-basicos" data-group="basicos">
+      <button class="group-toggle" data-target="basicos">
+        Datos básicos <span class="grp-count" id="cnt-basicos"></span>
+        <span class="chev">&#9662;</span>
+      </button>
+      <div class="group-body" id="body-basicos">
+
+        <div class="facet facet-cascade">
+          <label>Ubicación actual</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Elige país, ciudad o lugar; los demás campos se ajustan solos.</p>
+          <div class="facet-cascade-grid">
+            <div>
+              <label>País</label>
+              <select id="sel-pais"></select>
+            </div>
+            <div>
+              <label>Ciudad</label>
+              <select id="sel-ciudad"></select>
+            </div>
+            <div>
+              <label>Lugar</label>
+              <select id="sel-ubicacion"></select>
+            </div>
+          </div>
+          <div class="geo-link" id="geo-link"></div>
+        </div>
+
+        <div class="facet facet-cascade">
+          <label>Lugar de origen</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Dónde se creó la obra, no dónde está hoy.</p>
+          <div class="facet-cascade-grid">
+            <div>
+              <label>País</label>
+              <select id="sel-pais-origen"></select>
+            </div>
+            <div>
+              <label>Ciudad</label>
+              <select id="sel-ciudad-origen"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="facet">
+          <label>Fecha (rango de años, se cruza con la datación de la obra)</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Arrastra los dos extremos para definir el rango.</p>
+          <div class="range-slider">
+            <div class="range-values"><span id="range-val-desde"></span><span id="range-val-hasta"></span></div>
+            <div class="range-track"><div class="range-fill" id="range-fill"></div></div>
+            <input type="range" id="range-desde" step="1" aria-label="Año desde">
+            <input type="range" id="range-hasta" step="1" aria-label="Año hasta">
+          </div>
+        </div>
+
+        <div class="facet facet-cascade">
+          <label>Clasificación</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Hasta 6 niveles; cada uno depende del anterior.</p>
+          <div class="facet-cascade-grid">
+            <div>
+              <label>Nivel 1</label>
+              <select id="sel-cat-0"></select>
+            </div>
+            <div>
+              <label>Nivel 2</label>
+              <select id="sel-cat-1"></select>
+            </div>
+            <div>
+              <label>Nivel 3</label>
+              <select id="sel-cat-2"></select>
+            </div>
+            <div>
+              <label>Nivel 4</label>
+              <select id="sel-cat-3"></select>
+            </div>
+            <div>
+              <label>Nivel 5</label>
+              <select id="sel-cat-4"></select>
+            </div>
+            <div>
+              <label>Nivel 6</label>
+              <select id="sel-cat-5"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="facet" data-facet="tecnicas">
+          <label>Técnicas</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varias.</p>
+          <div class="checklist"></div>
+        </div>
+
+        <div class="facet" data-facet="autores">
+          <label>Autor (nombre completo)</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Busca y agrega varios autores.</p>
+          <input type="text" class="typeahead-input" placeholder="Buscar autor por nombre o apellido&hellip;">
+          <div class="typeahead-list"></div>
+          <div class="chips-mini"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ─────────── DATOS DE ANÁLISIS ─────────── -->
+    <section class="facet-group group-analisis" data-group="analisis">
+      <button class="group-toggle" data-target="analisis">
+        Datos de análisis <span class="grp-count" id="cnt-analisis"></span>
+        <span class="chev">&#9662;</span>
+      </button>
+      <div class="group-body" id="body-analisis">
+
+        <div class="facet" data-facet="simbolos">
+          <label>Símbolos</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varios; escribe para filtrar la lista.</p>
+          <input type="text" class="checklist-search" placeholder="Filtrar símbolos&hellip;">
+          <div class="checklist"></div>
+        </div>
+
+        <div class="facet" data-facet="caracteristicas">
+          <label>Características particulares</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varias.</p>
+          <div class="checklist"></div>
+        </div>
+
+        <div class="facet" data-facet="escenarios">
+          <label>Escenarios</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varios.</p>
+          <div class="checklist"></div>
+        </div>
+
+        <div class="facet" data-facet="objetos">
+          <label>Objetos</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varios; escribe para filtrar la lista.</p>
+          <input type="text" class="checklist-search" placeholder="Filtrar objetos&hellip;">
+          <div class="checklist"></div>
+        </div>
+
+        <div class="facet" data-facet="relato_visual"><label>Relato visual</label><select></select></div>
+        <div class="facet" data-facet="donante"><label>Donante</label><select></select></div>
+        <div class="facet" data-facet="cartela_filacteria"><label>Cartela / Filacteria</label><select></select></div>
+
+        <div class="facet" data-facet="descriptores">
+          <label>Descriptores</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varios; escribe para filtrar la lista.</p>
+          <input type="text" class="checklist-search" placeholder="Filtrar descriptores&hellip;">
+          <div class="checklist"></div>
+        </div>
+
+        <div class="facet" data-facet="personajes">
+          <label>Personaje central / tema</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Busca y agrega varios.</p>
+          <input type="text" class="typeahead-input" placeholder="Buscar personaje&hellip;">
+          <div class="typeahead-list"></div>
+          <div class="chips-mini"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ─────────── DATOS DE GESTOS ─────────── -->
+    <section class="facet-group group-gestos" data-group="gestos">
+      <button class="group-toggle" data-target="gestos">
+        Datos de gestos <span class="grp-count" id="cnt-gestos"></span>
+        <span class="chev">&#9662;</span>
+      </button>
+      <div class="group-body" id="body-gestos">
+        <div class="facet" data-facet="fisiognomica"><label>Fisiognómica: postura del cuerpo</label><select></select></div>
+        <div class="facet" data-facet="fisiognomica_imagen"><label>Fisiognómica: cuerpo y proporciones</label><select></select></div>
+        <div class="facet" data-facet="rostro"><label>Rostro</label><select></select></div>
+        <div class="facet" data-facet="tipo_gestual"><label>Tipo gestual (relación gesto-objeto)</label><select></select></div>
+        <div class="facet" data-facet="gesto1"><label>Gesto &mdash; nivel 1</label><select></select></div>
+        <div class="facet" data-facet="gesto2"><label>Gesto &mdash; nivel 2</label><select></select></div>
+        <div class="facet" data-facet="gesto3"><label>Gesto &mdash; nivel 3</label><select></select></div>
+        <div class="facet" data-facet="complejo_gestual"><label>Complejo gestual</label><select></select></div>
+      </div>
+    </section>
+  </aside>
+
+  <main class="results-panel">
+    <div class="results-toolbar">
+      <div class="results-stats" id="results-stats">Cargando&hellip;</div>
+      <div class="grid-zoom" aria-label="Tamaño de la cuadrícula">
+        <button id="zoom-out" type="button" aria-label="Ver imágenes más pequeñas" title="Ver imágenes más pequeñas">−</button>
+        <button id="zoom-in" type="button" aria-label="Ver imágenes más grandes" title="Ver imágenes más grandes">+</button>
+      </div>
+    </div>
+    <div class="grid" id="grid"><div class="loading-msg">Cargando obras&hellip;</div></div>
+    <div class="load-more-wrap" id="load-more-wrap" style="display:none">
+      <button class="load-more-btn" id="load-more-btn">Cargar más</button>
+    </div>
+  </main>
+
+  <aside class="viz-panel" id="viz-panel">
+    <div class="viz-header">
+      <span>Visualizaciones</span>
+      <p class="viz-subtitle">Sin filtros, un resumen de toda la colección. En cuanto ajustas algo a la izquierda, aquí aparece un mini-dashboard de esa selección.</p>
+    </div>
+
+    <div class="viz-kpis" id="viz-kpis">
+      <p class="viz-intro">Así es la colección completa de ARCA, antes de aplicar cualquier filtro.</p>
+      <div class="kpi-grid" id="viz-kpis-body"><p class="viz-empty">Cargando resumen&hellip;</p></div>
+    </div>
+
+    <div class="viz-charts" id="viz-charts" style="display:none">
+      <div class="viz-card" data-viz="categoria1">
+        <h3>Por clasificación (nivel 1)</h3>
+        <div class="viz-body"></div>
+      </div>
+      <div class="viz-card" data-viz="pais">
+        <h3>Por país (ubicación actual)</h3>
+        <div class="viz-body"></div>
+      </div>
+      <div class="viz-card" data-viz="decada">
+        <h3>Por década</h3>
+        <div class="viz-body"></div>
+      </div>
+      <div class="viz-card" data-viz="relato_visual">
+        <h3>Por relato visual</h3>
+        <div class="viz-body"></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="viz-tooltip" id="viz-tooltip"></div>
+
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+window.addEventListener('error', e => { document.getElementById('debug-error').textContent = 'ERR: ' + e.message + ' @ ' + e.filename + ':' + e.lineno; });
+window.addEventListener('unhandledrejection', e => { document.getElementById('debug-error').textContent = 'REJ: ' + (e.reason && e.reason.stack || e.reason); });
+(() => {
+  const API = 'https://apiarca.uniandes.edu.co';
+  const PAGE_SIZE = 24;
+  const FECHA_MIN = 1480, FECHA_MAX = 1990;
+
+  // ── Field groups ─────────────────────────────────────────────────
+  const FK_FIELDS = [
+    'pais','ciudad','ubicacion','ciudad_origen',
+    'categoria1','categoria2','categoria3','categoria4','categoria5','categoria6',
+    'relato_visual','donante','cartela_filacteria',
+    'fisiognomica','fisiognomica_imagen','rostro','tipo_gestual',
+    'gesto1','gesto2','gesto3','complejo_gestual',
+  ];
+  const M2M_FIELDS = ['autores','tecnicas','simbolos','caracteristicas','escenarios','objetos','descriptores','personajes'];
+
+  const FACET_META = {
+    autores:            { collection:'autores',            label:'Autor',                      group:'basicos' },
+    tecnicas:            { collection:'tecnicas',            label:'Técnicas',                   group:'basicos' },
+    simbolos:            { collection:'simbolos',            label:'Símbolos',                   group:'analisis' },
+    caracteristicas:     { collection:'caracteristicas',     label:'Características',            group:'analisis' },
+    escenarios:          { collection:'escenarios',          label:'Escenarios',                 group:'analisis' },
+    objetos:             { collection:'objetos',             label:'Objetos',                     group:'analisis' },
+    relato_visual:       { collection:'relatos_visuales',    label:'Relato visual',               group:'analisis' },
+    donante:             { collection:'donantes',            label:'Donante',                     group:'analisis' },
+    cartela_filacteria:  { collection:'cartelas_filacterias',label:'Cartela / Filacteria',         group:'analisis' },
+    descriptores:        { collection:'descriptores',        label:'Descriptores',                group:'analisis' },
+    personajes:          { collection:'personajes',          label:'Personaje',                   group:'analisis' },
+    fisiognomica:        { collection:'fisiognomicas',       label:'Fisiognómica',                group:'gestos' },
+    fisiognomica_imagen: { collection:'fisiognomicas_imagen',label:'Fisiognómica imagen',          group:'gestos' },
+    rostro:              { collection:'rostros',             label:'Rostro',                       group:'gestos' },
+    tipo_gestual:        { collection:'tipos_gestuales',     label:'Tipo gestual',                 group:'gestos' },
+    gesto1:              { collection:'gestos',              label:'Gesto nivel 1',                group:'gestos' },
+    gesto2:              { collection:'gestos',              label:'Gesto nivel 2',                group:'gestos' },
+    gesto3:              { collection:'gestos',              label:'Gesto nivel 3',                group:'gestos' },
+    complejo_gestual:    { collection:'complejos_gestuales', label:'Complejo gestual',             group:'gestos' },
+  };
+
+  const REF_QUERIES = {
+    paises:               'id,nombre',
+    ciudades:              'id,nombre,pais',
+    ubicaciones:           'id,nombre,ciudad,geo',
+    autores:               'id,nombre,apellido,count(obras)',
+    tecnicas:              'id,nombre,count(obras)',
+    categorias1:           'id,nombre',
+    categorias2:           'id,nombre,ancestro',
+    categorias3:           'id,nombre,ancestro',
+    categorias4:           'id,nombre,ancestro',
+    categorias5:           'id,nombre,ancestro',
+    categorias6:           'id,nombre,ancestro',
+    simbolos:              'id,nombre,count(obras)',
+    caracteristicas:       'id,nombre,count(obras)',
+    escenarios:            'id,nombre,count(obras)',
+    objetos:               'id,nombre,count(obras)',
+    relatos_visuales:      'id,nombre',
+    donantes:              'id,nombre',
+    cartelas_filacterias:  'id,nombre',
+    descriptores:          'id,nombre,count(obras)',
+    personajes:            'id,nombre,count(obras)',
+    gestos:                'id,nombre',
+    complejos_gestuales:   'id,nombre',
+    tipos_gestuales:       'id,nombre',
+    fisiognomicas:         'id,nombre',
+    fisiognomicas_imagen:  'id,nombre',
+    rostros:               'id,nombre',
+  };
+
+  const REF = {};   // REF.<collection> = [{id,nombre,...}]
+  const maps = {};  // maps.<collection> = {id: item}
+  Object.keys(REF_QUERIES).forEach(col => { REF[col] = []; maps[col] = {}; });
+
+  // ── State ────────────────────────────────────────────────────────
+  const state = { fechaDesde: null, fechaHasta: null, origenPaisUI: null, searchTitle: null };
+  FK_FIELDS.forEach(f => state[f] = null);
+  M2M_FIELDS.forEach(f => state[f] = []);
+
+  let offset = 0;
+  let currentTotal = 0;
+  let reqSeq = 0;
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  const norm = s => (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const byId = arr => Object.fromEntries(arr.map(x => [x.id, x]));
+  const groupBy = (arr, key) => arr.reduce((acc, x) => { const k = x[key]; if (k == null) return acc; (acc[k] ||= []).push(x); return acc; }, {});
+  const nombreDe = (col, id) => id != null && maps[col] && maps[col][id] ? maps[col][id].nombre : null;
+
+  async function fetchJSON(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }
+
+  // ── Load reference data ──────────────────────────────────────────
+  async function loadReferenceData() {
+    const entries = Object.entries(REF_QUERIES);
+    const results = await Promise.all(entries.map(([col, fields]) =>
+      fetchJSON(`${API}/items/${col}?limit=-1&fields=${encodeURIComponent(fields)}`).then(j => j.data || []).catch(() => [])
+    ));
+    entries.forEach(([col], i) => { REF[col] = results[i]; maps[col] = byId(results[i]); });
+
+    maps.ciudadesByPais = groupBy(REF.ciudades, 'pais');
+    maps.ubicacionesByCiudad = groupBy(REF.ubicaciones, 'ciudad');
+    for (let lvl = 2; lvl <= 6; lvl++) {
+      maps['categorias' + lvl + 'ByAncestro'] = groupBy(REF['categorias' + lvl], 'ancestro');
+    }
+  }
+
+  // ── General search across title and every reference facet ─────────
+  function matchingReferenceIds(collection, query, labelOf = item => item.nombre) {
+    const q = norm(query);
+    return (REF[collection] || [])
+      .filter(item => norm(labelOf(item)).includes(q))
+      .map(item => item.id);
+  }
+
+  function buildSearchOr(query) {
+    const q = query.trim();
+    if (!q) return [];
+    const or = [
+      { titulo: { _icontains: q } },
+      { sintesis: { _icontains: q } },
+    ];
+    const refSearches = [
+      ['pais', 'paises'], ['ciudad', 'ciudades'], ['ubicacion', 'ubicaciones'], ['ciudad_origen', 'ciudades'],
+      ['categoria1', 'categorias1'], ['categoria2', 'categorias2'], ['categoria3', 'categorias3'],
+      ['categoria4', 'categorias4'], ['categoria5', 'categorias5'], ['categoria6', 'categorias6'],
+      ['relato_visual', 'relatos_visuales'], ['donante', 'donantes'], ['cartela_filacteria', 'cartelas_filacterias'],
+      ['fisiognomica', 'fisiognomicas'], ['fisiognomica_imagen', 'fisiognomicas_imagen'], ['rostro', 'rostros'],
+      ['tipo_gestual', 'tipos_gestuales'], ['gesto1', 'gestos'], ['gesto2', 'gestos'], ['gesto3', 'gestos'],
+      ['complejo_gestual', 'complejos_gestuales'],
+    ];
+    refSearches.forEach(([field, collection]) => {
+      const ids = matchingReferenceIds(collection, q);
+      if (ids.length) or.push({ [field]: { _in: ids } });
+    });
+    M2M_FIELDS.forEach(field => {
+      const meta = FACET_META[field];
+      const ids = matchingReferenceIds(meta.collection, q, field === 'autores'
+        ? item => [item.nombre, item.apellido].filter(Boolean).join(' ')
+        : undefined);
+      if (ids.length) or.push({ [field]: { [field + '_id']: { _in: ids } } });
+    });
+    return or;
+  }
+
+  // ── Directus filter builder ──────────────────────────────────────
+  function buildFilter(excludeKeys = []) {
+    const ex = new Set(excludeKeys);
+    const and = [];
+
+    FK_FIELDS.forEach(f => {
+      if (!ex.has(f) && state[f] != null) and.push({ [f]: { _eq: state[f] } });
+    });
+    M2M_FIELDS.forEach(f => {
+      if (!ex.has(f) && state[f].length) {
+        and.push({ [f]: { [f + '_id']: { _in: state[f] } } });
+      }
+    });
+    if (!ex.has('ciudad_origen') && !state.ciudad_origen && state.origenPaisUI) {
+      const ids = (maps.ciudadesByPais[state.origenPaisUI] || []).map(c => c.id);
+      and.push({ ciudad_origen: { _in: ids.length ? ids : [-1] } });
+    }
+    if (!ex.has('fecha')) {
+      if (state.fechaHasta != null) and.push({ fecha_inicial: { _lte: state.fechaHasta } });
+      if (state.fechaDesde != null) {
+        and.push({ _or: [
+          { fecha_final: { _gte: state.fechaDesde } },
+          { _and: [{ fecha_final: { _null: true } }, { fecha_inicial: { _gte: state.fechaDesde } }] },
+        ] });
+      }
+    }
+    if (!ex.has('searchTitle') && state.searchTitle) {
+      and.push({ _or: buildSearchOr(state.searchTitle) });
+    }
+    return and.length ? { _and: and } : {};
+  }
+
+  async function fetchFilterCount(excludeKeys = []) {
+    const filter = buildFilter(excludeKeys);
+    const params = new URLSearchParams({ limit: '0', meta: 'filter_count' });
+    if (Object.keys(filter).length) params.set('filter', JSON.stringify(filter));
+    const j = await fetchJSON(`${API}/items/obras?${params}`);
+    return j.meta.filter_count;
+  }
+
+  async function fetchGroupCounts(field, excludeKeys = []) {
+    const filter = buildFilter(excludeKeys);
+    let url = `${API}/items/obras?aggregate%5Bcount%5D=*&groupBy%5B%5D=${field}&limit=-1`;
+    if (Object.keys(filter).length) url += `&filter=${encodeURIComponent(JSON.stringify(filter))}`;
+    const j = await fetchJSON(url);
+    const map = {};
+    (j.data || []).forEach(row => { if (row[field] != null) map[row[field]] = parseInt(row.count, 10); });
+    return map;
+  }
+
+  async function fetchObras(off) {
+    const filter = buildFilter([]);
+    const params = new URLSearchParams({
+      fields: 'id,titulo,imagen,fecha_inicial,fecha_final,pais,ciudad',
+      limit: String(PAGE_SIZE), offset: String(off), sort: 'fecha_inicial,id', meta: 'filter_count',
+    });
+    if (Object.keys(filter).length) params.set('filter', JSON.stringify(filter));
+    return fetchJSON(`${API}/items/obras?${params}`);
+  }
+
+  // ── Image helper (reuses the weserv.nl proxy technique already used in index.html,
+  //    since the Directus instance disables dynamic asset transforms) ──
+  function imgUrl(uuid, w) {
+    const src = `apiarca.uniandes.edu.co/assets/${uuid}`;
+    return `https://images.weserv.nl/?url=${src}&w=${w}&h=${w}&fit=cover&output=webp&q=60`;
+  }
+
+  function dateRange(o) {
+    if (!o.fecha_inicial) return '—';
+    if (!o.fecha_final || o.fecha_inicial === o.fecha_final) return `${o.fecha_inicial}`;
+    return `${o.fecha_inicial} – ${o.fecha_final}`;
+  }
+
+  // ── Results rendering ────────────────────────────────────────────
+  function cardHTML(o) {
+    const img = o.imagen
+      ? `<img class="card-img" src="${imgUrl(o.imagen, 320)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'card-img-placeholder',textContent:'✦'}))">`
+      : `<div class="card-img-placeholder">&#10022;</div>`;
+    const lugar = [nombreDe('ciudades', o.ciudad), nombreDe('paises', o.pais)].filter(Boolean).join(', ');
+    const title = document.createElement('div'); title.textContent = o.titulo || '(Sin título)';
+    return `<div class="card" data-id="${o.id}">
+      ${img}
+      <div class="card-body">
+        <p class="card-title">${title.innerHTML}</p>
+        <p class="card-meta">${dateRange(o)}</p>
+        ${lugar ? `<p class="card-meta2">${lugar}</p>` : ''}
+        <p class="card-id">ID: #${o.id}</p>
+      </div>
+    </div>`;
+  }
+
+  function renderGrid(obras, replace) {
+    const grid = document.getElementById('grid');
+    if (replace) grid.innerHTML = '';
+    if (!obras.length && replace) {
+      grid.innerHTML = `<div class="empty-msg">No hay obras que coincidan con estos filtros.</div>`;
+      return;
+    }
+    grid.insertAdjacentHTML('beforeend', obras.map(cardHTML).join(''));
+    grid.querySelectorAll('.card').forEach(el => {
+      if (el.dataset.wired) return;
+      el.dataset.wired = '1';
+      el.addEventListener('click', () => openModal(el.dataset.id));
+    });
+  }
+
+  async function refreshResults() {
+    offset = 0;
+    document.getElementById('grid').innerHTML = `<div class="loading-msg">Buscando&hellip;</div>`;
+    document.getElementById('load-more-wrap').style.display = 'none';
+    const mySeq = ++reqSeq;
+    const j = await fetchObras(0);
+    if (mySeq !== reqSeq) return;
+    currentTotal = j.meta.filter_count;
+    offset = j.data.length;
+    renderGrid(j.data, true);
+    document.getElementById('results-stats').innerHTML =
+      `Mostrando <strong>${Math.min(offset, currentTotal).toLocaleString('es-CO')}</strong> de <strong>${currentTotal.toLocaleString('es-CO')}</strong> obras`;
+    document.getElementById('load-more-wrap').style.display = offset < currentTotal ? 'block' : 'none';
+  }
+
+  async function loadMore() {
+    const btn = document.getElementById('load-more-btn');
+    btn.disabled = true; btn.textContent = 'Cargando...';
+    const mySeq = reqSeq;
+    const j = await fetchObras(offset);
+    if (mySeq === reqSeq) {
+      offset += j.data.length;
+      renderGrid(j.data, false);
+      document.getElementById('results-stats').innerHTML =
+        `Mostrando <strong>${offset.toLocaleString('es-CO')}</strong> de <strong>${currentTotal.toLocaleString('es-CO')}</strong> obras`;
+    }
+    btn.disabled = false; btn.textContent = 'Cargar más';
+    if (offset >= currentTotal) document.getElementById('load-more-wrap').style.display = 'none';
+  }
+  document.getElementById('load-more-btn').addEventListener('click', loadMore);
+
+  const gridZoomLevels = [8, 6, 5, 4, 3, 2, 1];
+  let gridZoomIndex = 3;
+  const gridEl = document.getElementById('grid');
+  function updateGridZoom() {
+    gridEl.style.setProperty('--grid-columns', gridZoomLevels[gridZoomIndex]);
+    document.getElementById('zoom-out').disabled = gridZoomIndex === 0;
+    document.getElementById('zoom-in').disabled = gridZoomIndex === gridZoomLevels.length - 1;
+  }
+  document.getElementById('zoom-out').addEventListener('click', () => {
+    if (gridZoomIndex > 0) { gridZoomIndex--; updateGridZoom(); }
+  });
+  document.getElementById('zoom-in').addEventListener('click', () => {
+    if (gridZoomIndex < gridZoomLevels.length - 1) { gridZoomIndex++; updateGridZoom(); }
+  });
+  updateGridZoom();
+
+  // ── Modal detail ─────────────────────────────────────────────────
+  const M2M_DETAIL_FIELDS = M2M_FIELDS.map(f => `${f}.${f}_id`).join(',');
+  async function openModal(id) {
+    const backdrop = document.getElementById('modal-backdrop');
+    const content = document.getElementById('modal-content');
+    content.innerHTML = `<button class="modal-close" id="modal-close">&times;</button><div class="loading-msg">Cargando&hellip;</div>`;
+    backdrop.classList.add('show');
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+
+    const j = await fetchJSON(`${API}/items/obras/${id}?fields=*,${M2M_DETAIL_FIELDS}`);
+    const o = j.data;
+    const rows = [];
+    const add = (label, val) => { if (val) rows.push(`<dt>${label}</dt><dd>${val}</dd>`); };
+
+    add('Fecha', dateRange(o));
+    add('Ubicación actual', [nombreDe('ubicaciones', o.ubicacion), nombreDe('ciudades', o.ciudad), nombreDe('paises', o.pais)].filter(Boolean).join(' · '));
+    add('Lugar de origen', nombreDe('ciudades', o.ciudad_origen));
+    add('Clasificación', [1,2,3,4,5,6].map(n => nombreDe('categorias'+n, o['categoria'+n])).filter(Boolean).join(' &rarr; '));
+    add('Autor(es)', (o.autores||[]).map(r => {
+      const a = maps.autores[r.autores_id];
+      return a ? [a.nombre, a.apellido].filter(Boolean).join(' ') : null;
+    }).filter(Boolean).join(', '));
+    add('Técnicas', (o.tecnicas||[]).map(r => nombreDe('tecnicas', r.tecnicas_id)).filter(Boolean).join(', '));
+    add('Símbolos', (o.simbolos||[]).map(r => nombreDe('simbolos', r.simbolos_id)).filter(Boolean).join(', '));
+    add('Características', (o.caracteristicas||[]).map(r => nombreDe('caracteristicas', r.caracteristicas_id)).filter(Boolean).join(', '));
+    add('Escenarios', (o.escenarios||[]).map(r => nombreDe('escenarios', r.escenarios_id)).filter(Boolean).join(', '));
+    add('Objetos', (o.objetos||[]).map(r => nombreDe('objetos', r.objetos_id)).filter(Boolean).join(', '));
+    add('Descriptores', (o.descriptores||[]).map(r => nombreDe('descriptores', r.descriptores_id)).filter(Boolean).join(', '));
+    add('Personajes', (o.personajes||[]).map(r => nombreDe('personajes', r.personajes_id)).filter(Boolean).join(', '));
+    add('Relato visual', nombreDe('relatos_visuales', o.relato_visual));
+    add('Donante', nombreDe('donantes', o.donante));
+    add('Cartela / Filacteria', nombreDe('cartelas_filacterias', o.cartela_filacteria));
+    add('Fisiognómica', nombreDe('fisiognomicas', o.fisiognomica));
+    add('Fisiognómica imagen', nombreDe('fisiognomicas_imagen', o.fisiognomica_imagen));
+    add('Rostro', nombreDe('rostros', o.rostro));
+    add('Tipo gestual', nombreDe('tipos_gestuales', o.tipo_gestual));
+    add('Gestos', [o.gesto1,o.gesto2,o.gesto3].map(g => nombreDe('gestos', g)).filter(Boolean).join(', '));
+    add('Complejo gestual', nombreDe('complejos_gestuales', o.complejo_gestual));
+
+    const titleEl = document.createElement('div'); titleEl.textContent = o.titulo || '(Sin título)';
+    const sintesisEl = document.createElement('div'); sintesisEl.textContent = o.sintesis || '';
+
+    content.innerHTML = `
+      <button class="modal-close" id="modal-close">&times;</button>
+      ${o.imagen ? `<img src="${imgUrl(o.imagen, 700)}" alt="">` : ''}
+      <h2>${titleEl.innerHTML}</h2>
+      ${o.sintesis ? `<p class="sintesis">${sintesisEl.innerHTML}</p>` : ''}
+      <dl>${rows.join('')}</dl>
+    `;
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+  }
+  function closeModal() { document.getElementById('modal-backdrop').classList.remove('show'); }
+  document.getElementById('modal-backdrop').addEventListener('click', e => { if (e.target.id === 'modal-backdrop') closeModal(); });
+
+  // ── Generic FK select facets ─────────────────────────────────────
+  const fkSelectEls = {}; // field -> <select>
+
+  function populateSelect(select, items, currentValue) {
+    const frag = document.createDocumentFragment();
+    const allOpt = document.createElement('option');
+    allOpt.value = ''; allOpt.textContent = '— Todos —';
+    frag.appendChild(allOpt);
+    items.slice().sort((a,b) => (a.nombre||'').localeCompare(b.nombre||'', 'es')).forEach(it => {
+      const opt = document.createElement('option');
+      opt.value = it.id; opt.dataset.base = it.nombre || ('#' + it.id);
+      opt.textContent = opt.dataset.base;
+      frag.appendChild(opt);
+    });
+    select.innerHTML = '';
+    select.appendChild(frag);
+    select.value = currentValue != null ? String(currentValue) : '';
+  }
+
+  async function refreshSelectCounts(select, field, excludeKeys, hideZero = false) {
+    let counts;
+    try { counts = await fetchGroupCounts(field, excludeKeys); } catch { return; }
+    Array.from(select.options).forEach(opt => {
+      if (!opt.value) return;
+      const n = counts[opt.value] || 0;
+      opt.textContent = `${opt.dataset.base} (${n})`;
+      opt.classList.toggle('zero', n === 0);
+      if (hideZero) opt.hidden = n === 0 && select.value !== opt.value;
+    });
+  }
+
+  function initGenericFkFacet(field) {
+    const meta = FACET_META[field];
+    const container = document.querySelector(`[data-facet="${field}"]`);
+    const select = container.querySelector('select');
+    fkSelectEls[field] = select;
+    populateSelect(select, REF[meta.collection], null);
+    select.addEventListener('change', () => {
+      state[field] = select.value ? Number(select.value) : null;
+      onFilterChanged();
+    });
+  }
+
+  // ── M2M typeahead facets ─────────────────────────────────────────
+  function initTypeahead(field) {
+    const meta = FACET_META[field];
+    const container = document.querySelector(`[data-facet="${field}"]`);
+    const input = container.querySelector('.typeahead-input');
+    const list = container.querySelector('.typeahead-list');
+    const chipsWrap = container.querySelector('.chips-mini');
+
+    function labelOf(item) {
+      if (field === 'autores') return [item.nombre, item.apellido].filter(Boolean).join(' ') || ('#' + item.id);
+      return item.nombre || ('#' + item.id);
+    }
+
+    function renderChips() {
+      chipsWrap.innerHTML = state[field].map(id => {
+        const item = maps[meta.collection][id];
+        const name = item ? labelOf(item) : ('#' + id);
+        return `<span class="chip" data-id="${id}">${name.replace(/</g,'&lt;')} <button data-id="${id}">&times;</button></span>`;
+      }).join('');
+      chipsWrap.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        state[field] = state[field].filter(x => x !== Number(b.dataset.id));
+        renderChips();
+        onFilterChanged();
+      }));
+    }
+
+    input.addEventListener('input', () => {
+      const q = norm(input.value);
+      if (!q) { list.classList.remove('show'); list.innerHTML = ''; return; }
+      const matches = REF[meta.collection]
+        .filter(it => !state[field].includes(it.id) && norm(labelOf(it)).includes(q)
+          && (meta.group !== 'basicos' || Number(it.obras_count) > 0))
+        .slice(0, 30);
+      list.innerHTML = matches.map(it =>
+        `<div data-id="${it.id}"><span>${labelOf(it).replace(/</g,'&lt;')}</span>${it.obras_count != null ? `<span class="n">${it.obras_count}</span>` : ''}</div>`
+      ).join('') || `<div style="color:var(--muted2);cursor:default">Sin coincidencias</div>`;
+      list.classList.add('show');
+      list.querySelectorAll('div[data-id]').forEach(d => d.addEventListener('click', () => {
+        state[field].push(Number(d.dataset.id));
+        input.value = ''; list.classList.remove('show'); list.innerHTML = '';
+        renderChips();
+        onFilterChanged();
+      }));
+    });
+    input.addEventListener('blur', () => setTimeout(() => list.classList.remove('show'), 150));
+    renderChips();
+  }
+
+  // ── M2M checklist facets ─────────────────────────────────────────
+  function initChecklist(field) {
+    const meta = FACET_META[field];
+    const container = document.querySelector(`[data-facet="${field}"]`);
+    const box = container.querySelector('.checklist');
+    const searchInput = container.querySelector('.checklist-search');
+    const items = REF[meta.collection]
+      .filter(it => meta.group !== 'basicos' || Number(it.obras_count) > 0)
+      .sort((a,b) => (a.nombre||'').localeCompare(b.nombre||'', 'es'));
+    box.innerHTML = items.map(it =>
+      `<label data-name="${norm(it.nombre||'').replace(/"/g,'&quot;')}"><input type="checkbox" value="${it.id}"> ${(it.nombre||'#'+it.id).replace(/</g,'&lt;')}${it.obras_count != null ? `<span class="n">${it.obras_count}</span>` : ''}</label>`
+    ).join('');
+    box.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
+      const id = Number(cb.value);
+      if (cb.checked) state[field].push(id);
+      else state[field] = state[field].filter(x => x !== id);
+      onFilterChanged();
+    }));
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        const q = norm(searchInput.value);
+        box.querySelectorAll('label').forEach(label => {
+          label.style.display = !q || label.dataset.name.includes(q) ? '' : 'none';
+        });
+      });
+    }
+  }
+
+  // ── Ubicación actual (país → ciudad → ubicación), bidirectional ──
+  const selPais = document.getElementById('sel-pais');
+  const selCiudad = document.getElementById('sel-ciudad');
+  const selUbicacion = document.getElementById('sel-ubicacion');
+  const geoLinkEl = document.getElementById('geo-link');
+
+  function refreshCiudadOptions(preserveValue) {
+    const list = state.pais ? (maps.ciudadesByPais[state.pais] || []) : REF.ciudades;
+    populateSelect(selCiudad, list, preserveValue ? state.ciudad : null);
+  }
+  function refreshUbicacionOptions(preserveValue) {
+    const list = state.ciudad ? (maps.ubicacionesByCiudad[state.ciudad] || []) : REF.ubicaciones;
+    populateSelect(selUbicacion, list, preserveValue ? state.ubicacion : null);
+  }
+  function refreshGeoLink() {
+    const ub = state.ubicacion ? maps.ubicaciones[state.ubicacion] : null;
+    if (ub && ub.geo && ub.geo.coordinates) {
+      const [lon, lat] = ub.geo.coordinates;
+      geoLinkEl.innerHTML = `<a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}" target="_blank" rel="noopener">Ver "${(ub.nombre||'').replace(/</g,'&lt;')}" en el mapa &rarr;</a>`;
+    } else {
+      geoLinkEl.innerHTML = '';
+    }
+  }
+
+  populateSelect(selPais, REF.paises, null);
+  refreshCiudadOptions(false);
+  refreshUbicacionOptions(false);
+
+  selPais.addEventListener('change', () => {
+    state.pais = selPais.value ? Number(selPais.value) : null;
+    if (state.ciudad && maps.ciudades[state.ciudad] && maps.ciudades[state.ciudad].pais !== state.pais) {
+      state.ciudad = null; state.ubicacion = null;
+    }
+    refreshCiudadOptions(true);
+    refreshUbicacionOptions(true);
+    refreshGeoLink();
+    onFilterChanged();
+  });
+  selCiudad.addEventListener('change', () => {
+    state.ciudad = selCiudad.value ? Number(selCiudad.value) : null;
+    if (state.ciudad) {
+      const c = maps.ciudades[state.ciudad];
+      if (c && c.pais !== state.pais) { state.pais = c.pais; selPais.value = String(c.pais); }
+    }
+    if (state.ubicacion && maps.ubicaciones[state.ubicacion] && maps.ubicaciones[state.ubicacion].ciudad !== state.ciudad) {
+      state.ubicacion = null;
+    }
+    refreshUbicacionOptions(true);
+    refreshGeoLink();
+    onFilterChanged();
+  });
+  selUbicacion.addEventListener('change', () => {
+    state.ubicacion = selUbicacion.value ? Number(selUbicacion.value) : null;
+    if (state.ubicacion) {
+      const u = maps.ubicaciones[state.ubicacion];
+      if (u && u.ciudad && u.ciudad !== state.ciudad) {
+        state.ciudad = u.ciudad;
+        selCiudad.value = String(u.ciudad);
+        const c = maps.ciudades[u.ciudad];
+        if (c) { state.pais = c.pais; selPais.value = String(c.pais); }
+        refreshCiudadOptions(true);
+      }
+    }
+    refreshGeoLink();
+    onFilterChanged();
+  });
+
+  // ── Lugar de origen (país → ciudad), bidirectional ───────────────
+  const selPaisOrigen = document.getElementById('sel-pais-origen');
+  const selCiudadOrigen = document.getElementById('sel-ciudad-origen');
+
+  function refreshCiudadOrigenOptions(preserveValue) {
+    const list = state.origenPaisUI ? (maps.ciudadesByPais[state.origenPaisUI] || []) : REF.ciudades;
+    populateSelect(selCiudadOrigen, list, preserveValue ? state.ciudad_origen : null);
+  }
+  populateSelect(selPaisOrigen, REF.paises, null);
+  refreshCiudadOrigenOptions(false);
+
+  selPaisOrigen.addEventListener('change', () => {
+    state.origenPaisUI = selPaisOrigen.value ? Number(selPaisOrigen.value) : null;
+    if (state.ciudad_origen && maps.ciudades[state.ciudad_origen] && maps.ciudades[state.ciudad_origen].pais !== state.origenPaisUI) {
+      state.ciudad_origen = null;
+    }
+    refreshCiudadOrigenOptions(true);
+    onFilterChanged();
+  });
+  selCiudadOrigen.addEventListener('change', () => {
+    state.ciudad_origen = selCiudadOrigen.value ? Number(selCiudadOrigen.value) : null;
+    if (state.ciudad_origen) {
+      const c = maps.ciudades[state.ciudad_origen];
+      if (c && c.pais !== state.origenPaisUI) { state.origenPaisUI = c.pais; selPaisOrigen.value = String(c.pais); }
+    }
+    onFilterChanged();
+  });
+
+  // ── Fecha (slider de rango doble) ──────────────────────────────────
+  const rangeDesde = document.getElementById('range-desde');
+  const rangeHasta = document.getElementById('range-hasta');
+  const rangeFill = document.getElementById('range-fill');
+  const rangeValDesde = document.getElementById('range-val-desde');
+  const rangeValHasta = document.getElementById('range-val-hasta');
+  [rangeDesde, rangeHasta].forEach(inp => { inp.min = FECHA_MIN; inp.max = FECHA_MAX; });
+  rangeDesde.value = FECHA_MIN;
+  rangeHasta.value = FECHA_MAX;
+
+  function syncRangeUI() {
+    const lo = Number(rangeDesde.value), hi = Number(rangeHasta.value);
+    rangeValDesde.textContent = lo;
+    rangeValHasta.textContent = hi;
+    const pctLo = (lo - FECHA_MIN) / (FECHA_MAX - FECHA_MIN) * 100;
+    const pctHi = (hi - FECHA_MIN) / (FECHA_MAX - FECHA_MIN) * 100;
+    rangeFill.style.left = pctLo + '%';
+    rangeFill.style.right = (100 - pctHi) + '%';
+  }
+
+  let fechaTimer;
+  function onRangeInput(e) {
+    if (Number(rangeDesde.value) > Number(rangeHasta.value)) {
+      if (e.target === rangeDesde) rangeDesde.value = rangeHasta.value;
+      else rangeHasta.value = rangeDesde.value;
+    }
+    syncRangeUI();
+    clearTimeout(fechaTimer);
+    fechaTimer = setTimeout(() => {
+      const lo = Number(rangeDesde.value), hi = Number(rangeHasta.value);
+      state.fechaDesde = lo > FECHA_MIN ? lo : null;
+      state.fechaHasta = hi < FECHA_MAX ? hi : null;
+      onFilterChanged();
+    }, 200);
+  }
+  rangeDesde.addEventListener('input', onRangeInput);
+  rangeHasta.addEventListener('input', onRangeInput);
+  syncRangeUI();
+
+  // ── Clasificación (6 niveles en cascada, bidireccional vía "ancestro") ──
+  const catSelects = [0,1,2,3,4,5].map(i => document.getElementById('sel-cat-' + i));
+  const catField = i => 'categoria' + (i + 1);
+  const catCollection = i => 'categorias' + (i + 1);
+
+  function refreshCatOptions(level, preserveValue) {
+    const select = catSelects[level];
+    let items;
+    if (level === 0) items = REF.categorias1;
+    else {
+      const parentVal = state[catField(level - 1)];
+      items = parentVal ? (maps['categorias' + (level + 1) + 'ByAncestro'][parentVal] || []) : REF['categorias' + (level + 1)];
+    }
+    populateSelect(select, items, preserveValue ? state[catField(level)] : null);
+  }
+
+  catSelects.forEach((select, level) => {
+    refreshCatOptions(level, false);
+    select.addEventListener('change', () => {
+      state[catField(level)] = select.value ? Number(select.value) : null;
+      // Bottom-up sync: if a deep level is picked, fill in its ancestors.
+      if (state[catField(level)]) {
+        let cur = state[catField(level)], lvl = level;
+        while (lvl > 0) {
+          const item = maps[catCollection(lvl)][cur];
+          if (!item || item.ancestro == null) break;
+          lvl -= 1;
+          state[catField(lvl)] = item.ancestro;
+          catSelects[lvl].value = String(item.ancestro);
+          cur = item.ancestro;
+        }
+      }
+      // Top-down: reset descendants and repopulate their option lists.
+      for (let l = level + 1; l <= 5; l++) { state[catField(l)] = null; }
+      for (let l = 0; l <= 5; l++) refreshCatOptions(l, true);
+      onFilterChanged();
+    });
+  });
+
+  // ── Active filter chips + section counters ───────────────────────
+  function facetSummary() {
+    const parts = [];
+    if (state.autores.length) parts.push(['autores', `Autor (${state.autores.length})`]);
+    if (state.pais || state.ciudad || state.ubicacion) {
+      const bits = [nombreDe('ubicaciones', state.ubicacion), nombreDe('ciudades', state.ciudad), nombreDe('paises', state.pais)].filter(Boolean);
+      parts.push(['ubicacion', `Ubicación: ${bits[0] || ''}`]);
+    }
+    if (state.ciudad_origen || state.origenPaisUI) {
+      const label = nombreDe('ciudades', state.ciudad_origen) || nombreDe('paises', state.origenPaisUI);
+      parts.push(['origen', `Origen: ${label}`]);
+    }
+    if (state.searchTitle) {
+      parts.push(['searchTitle', `Búsqueda: ${state.searchTitle}`]);
+    }
+    if (state.fechaDesde != null || state.fechaHasta != null) {
+      parts.push(['fecha', `Fecha: ${state.fechaDesde ?? FECHA_MIN} – ${state.fechaHasta ?? FECHA_MAX}`]);
+    }
+    for (let l = 0; l <= 5; l++) {
+      const v = state[catField(l)];
+      if (v) parts.push(['cat' + l, `Cat. ${l+1}: ${nombreDe(catCollection(l), v)}`]);
+    }
+    if (state.tecnicas.length) parts.push(['tecnicas', `Técnicas (${state.tecnicas.length})`]);
+    ['simbolos','caracteristicas','escenarios','objetos','descriptores','personajes'].forEach(f => {
+      if (state[f].length) parts.push([f, `${FACET_META[f].label} (${state[f].length})`]);
+    });
+    ['relato_visual','donante','cartela_filacteria','fisiognomica','fisiognomica_imagen','rostro','tipo_gestual','gesto1','gesto2','gesto3','complejo_gestual'].forEach(f => {
+      if (state[f]) parts.push([f, `${FACET_META[f].label}: ${nombreDe(FACET_META[f].collection, state[f])}`]);
+    });
+    return parts;
+  }
+
+  function clearFacet(key) {
+    if (key === 'ubicacion') { state.pais = null; state.ciudad = null; state.ubicacion = null; selPais.value=''; refreshCiudadOptions(false); refreshUbicacionOptions(false); refreshGeoLink(); }
+    else if (key === 'origen') { state.origenPaisUI = null; state.ciudad_origen = null; selPaisOrigen.value=''; refreshCiudadOrigenOptions(false); }
+    else if (key === 'fecha') {
+      state.fechaDesde = null; state.fechaHasta = null;
+      rangeDesde.value = FECHA_MIN; rangeHasta.value = FECHA_MAX; syncRangeUI();
+    }
+    else if (/^cat\d$/.test(key)) {
+      const lvl = Number(key.slice(3));
+      state[catField(lvl)] = null;
+      for (let l = lvl+1; l <= 5; l++) state[catField(l)] = null;
+      for (let l = 0; l <= 5; l++) refreshCatOptions(l, true);
+    } else if (key === 'searchTitle') {
+      state.searchTitle = null;
+      document.getElementById('search-obras').value = '';
+      document.getElementById('search-suggestions').classList.remove('show');
+    } else if (M2M_FIELDS.includes(key)) {
+      state[key] = [];
+      const container = document.querySelector(`[data-facet="${key}"]`);
+      container.querySelectorAll('.chips-mini').forEach(w => w.innerHTML='');
+      container.querySelectorAll('.checklist input[type=checkbox]').forEach(cb => cb.checked = false);
+    } else if (FK_FIELDS.includes(key)) {
+      state[key] = null;
+      if (fkSelectEls[key]) fkSelectEls[key].value = '';
+    }
+    onFilterChanged();
+  }
+
+  function updateChips() {
+    const chipsEl = document.getElementById('chips');
+    const parts = facetSummary();
+    chipsEl.innerHTML = parts.map(([key, label]) =>
+      `<span class="chip">${label.replace(/</g,'&lt;')} <button data-key="${key}">&times;</button></span>`
+    ).join('');
+    chipsEl.querySelectorAll('button').forEach(b => b.addEventListener('click', () => clearFacet(b.dataset.key)));
+
+    ['basicos','analisis','gestos'].forEach(g => {
+      const n = parts.filter(([k]) => facetGroupOf(k) === g).length;
+      const el = document.getElementById('cnt-' + g);
+      el.textContent = n ? `(${n})` : '';
+    });
+  }
+  function facetGroupOf(key) {
+    if (['autores','ubicacion','origen','fecha','tecnicas'].includes(key) || /^cat\d$/.test(key)) return 'basicos';
+    if (FACET_META[key]) return FACET_META[key].group;
+    return '';
+  }
+
+  // ── Orchestration ─────────────────────────────────────────────────
+  let debounceTimer;
+  function onFilterChanged() {
+    updateChips();
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      refreshResults();
+      refreshOpenSectionCounts();
+      updateVizMode();
+    }, 200);
+  }
+
+  // ── Visualizations panel ────────────────────────────────────────────
+  const VIZ_CONFIG = {
+    categoria1:    { field: 'categoria1',    collection: 'categorias1' },
+    pais:          { field: 'pais',          collection: 'paises' },
+    relato_visual: { field: 'relato_visual', collection: 'relatos_visuales' },
+  };
+  const VIZ_TOP_N = 8;
+  const vizTooltip = document.getElementById('viz-tooltip');
+  const vizKpisEl = document.getElementById('viz-kpis');
+  const vizChartsEl = document.getElementById('viz-charts');
+  let vizReqSeq = 0;
+
+  async function loadOverviewKpis() {
+    const body = document.getElementById('viz-kpis-body');
+    try {
+      const [totalJ, paisCounts] = await Promise.all([
+        fetchJSON(`${API}/items/obras?limit=0&meta=filter_count`),
+        fetchGroupCounts('pais', []),
+      ]);
+      const tiles = [
+        { label: 'Obras catalogadas', value: totalJ.meta.filter_count.toLocaleString('es-CO') },
+        { label: 'Autores', value: REF.autores.length.toLocaleString('es-CO') },
+        { label: 'Países representados', value: Object.keys(paisCounts).length.toLocaleString('es-CO') },
+        { label: 'Técnicas registradas', value: REF.tecnicas.length.toLocaleString('es-CO') },
+        { label: 'Rango de fechas', value: `${FECHA_MIN}–${FECHA_MAX}`, wide: true },
+      ];
+      body.innerHTML = tiles.map(t =>
+        `<div class="kpi-tile${t.wide ? ' wide' : ''}"><div class="kpi-value">${t.value}</div><div class="kpi-label">${t.label}</div></div>`
+      ).join('');
+    } catch {
+      body.innerHTML = '<p class="viz-empty">No se pudo cargar el resumen.</p>';
+    }
+  }
+
+  function updateVizMode() {
+    const active = facetSummary().length > 0;
+    vizKpisEl.style.display = active ? 'none' : '';
+    vizChartsEl.style.display = active ? '' : 'none';
+    if (active) refreshVisualizations();
+  }
+
+  function showVizTooltip(e, name, value) {
+    vizTooltip.innerHTML = '';
+    const strong = document.createElement('strong');
+    strong.textContent = value.toLocaleString('es-CO');
+    const label = document.createTextNode(' obras — ' + name);
+    vizTooltip.appendChild(strong);
+    vizTooltip.appendChild(label);
+    vizTooltip.style.display = 'block';
+    moveVizTooltip(e);
+  }
+  function moveVizTooltip(e) {
+    vizTooltip.style.left = (e.clientX + 14) + 'px';
+    vizTooltip.style.top = (e.clientY + 14) + 'px';
+  }
+  function hideVizTooltip() { vizTooltip.style.display = 'none'; }
+
+  function renderBarChart(bodyEl, rows) {
+    bodyEl.innerHTML = '';
+    if (!rows.length) {
+      bodyEl.innerHTML = '<p class="viz-empty">Sin datos para los filtros actuales.</p>';
+      return;
+    }
+    const max = Math.max(...rows.map(r => r.count));
+    rows.forEach(row => {
+      const wrap = document.createElement('div');
+      wrap.className = 'bar-row';
+      const labelRow = document.createElement('div');
+      labelRow.className = 'bar-row-label';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'name';
+      nameEl.textContent = row.name;
+      const valEl = document.createElement('span');
+      valEl.className = 'val';
+      valEl.textContent = row.count.toLocaleString('es-CO');
+      labelRow.appendChild(nameEl);
+      labelRow.appendChild(valEl);
+      const track = document.createElement('div');
+      track.className = 'bar-track';
+      const fill = document.createElement('div');
+      fill.className = 'bar-fill';
+      fill.style.width = (max ? row.count / max * 100 : 0) + '%';
+      track.appendChild(fill);
+      wrap.appendChild(labelRow);
+      wrap.appendChild(track);
+      wrap.addEventListener('pointermove', e => showVizTooltip(e, row.name, row.count));
+      wrap.addEventListener('pointerleave', hideVizTooltip);
+      bodyEl.appendChild(wrap);
+    });
+  }
+
+  async function loadVizRows(field, collection) {
+    const counts = await fetchGroupCounts(field, []);
+    const rows = Object.entries(counts)
+      .map(([id, count]) => ({ name: nombreDe(collection, Number(id)) || ('#' + id), count }))
+      .sort((a, b) => b.count - a.count);
+    if (rows.length <= VIZ_TOP_N) return rows;
+    const top = rows.slice(0, VIZ_TOP_N);
+    const restCount = rows.slice(VIZ_TOP_N).reduce((s, r) => s + r.count, 0);
+    if (restCount > 0) top.push({ name: 'Otras', count: restCount });
+    return top;
+  }
+
+  async function loadDecadaRows() {
+    const counts = await fetchGroupCounts('fecha_inicial', []);
+    const byDecade = {};
+    Object.entries(counts).forEach(([year, count]) => {
+      const decade = Math.floor(Number(year) / 10) * 10;
+      byDecade[decade] = (byDecade[decade] || 0) + count;
+    });
+    return Object.entries(byDecade)
+      .map(([decade, count]) => ({ name: decade + 's', count }))
+      .sort((a, b) => Number(a.name) - Number(b.name));
+  }
+
+  async function refreshVisualizations() {
+    const mySeq = ++vizReqSeq;
+    const panel = document.getElementById('viz-panel');
+    panel.classList.add('loading');
+    try {
+      const entries = Object.entries(VIZ_CONFIG);
+      const [rowsList, decadaRows] = await Promise.all([
+        Promise.all(entries.map(([, cfg]) => loadVizRows(cfg.field, cfg.collection))),
+        loadDecadaRows(),
+      ]);
+      if (mySeq !== vizReqSeq) return;
+      entries.forEach(([key], i) => {
+        const body = document.querySelector(`.viz-card[data-viz="${key}"] .viz-body`);
+        if (body) renderBarChart(body, rowsList[i]);
+      });
+      const decadaBody = document.querySelector('.viz-card[data-viz="decada"] .viz-body');
+      if (decadaBody) renderBarChart(decadaBody, decadaRows);
+    } catch {
+      // silently keep the previous render on error
+    } finally {
+      if (mySeq === vizReqSeq) panel.classList.remove('loading');
+    }
+  }
+
+  function refreshOpenSectionCounts() {
+    document.querySelectorAll('.facet-group.open').forEach(group => {
+      const g = group.dataset.group;
+      if (g === 'basicos') {
+        refreshSelectCounts(selPais, 'pais', ['pais','ciudad','ubicacion'], true);
+        refreshSelectCounts(selCiudad, 'ciudad', ['ciudad','ubicacion'], true);
+        refreshSelectCounts(selUbicacion, 'ubicacion', ['ubicacion'], true);
+        refreshOrigenPaisCounts();
+        refreshSelectCounts(selCiudadOrigen, 'ciudad_origen', ['ciudad_origen'], true);
+        for (let l = 0; l <= 5; l++) refreshSelectCounts(catSelects[l], catField(l), [catField(l)], true);
+      }
+      if (g === 'analisis') {
+        ['relato_visual','donante','cartela_filacteria'].forEach(f =>
+          refreshSelectCounts(fkSelectEls[f], f, [f]));
+      }
+      if (g === 'gestos') {
+        ['fisiognomica','fisiognomica_imagen','rostro','tipo_gestual','gesto1','gesto2','gesto3','complejo_gestual'].forEach(f =>
+          refreshSelectCounts(fkSelectEls[f], f, [f], true));
+      }
+    });
+  }
+
+  async function refreshOrigenPaisCounts() {
+    let counts;
+    try { counts = await fetchGroupCounts('ciudad_origen', ['ciudad_origen']); } catch { return; }
+    const byCountry = {};
+    Object.entries(counts).forEach(([cid, n]) => {
+      const c = maps.ciudades[cid];
+      if (!c) return;
+      byCountry[c.pais] = (byCountry[c.pais] || 0) + n;
+    });
+    Array.from(selPaisOrigen.options).forEach(opt => {
+      if (!opt.value) return;
+      const n = byCountry[opt.value] || 0;
+      opt.textContent = `${opt.dataset.base} (${n})`;
+      opt.classList.toggle('zero', n === 0);
+      opt.hidden = n === 0 && selPaisOrigen.value !== opt.value;
+    });
+  }
+
+  // ── Accordion toggles ────────────────────────────────────────────
+  document.querySelectorAll('.group-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const group = btn.closest('.facet-group');
+      const willOpen = !group.classList.contains('open');
+      group.classList.toggle('open', willOpen);
+      if (willOpen) refreshOpenSectionCounts();
+    });
+  });
+
+  // ── Reset ─────────────────────────────────────────────────────────
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    FK_FIELDS.forEach(f => state[f] = null);
+    M2M_FIELDS.forEach(f => state[f] = []);
+    state.fechaDesde = null; state.fechaHasta = null; state.origenPaisUI = null; state.searchTitle = null;
+
+    Object.values(fkSelectEls).forEach(s => s.value = '');
+    document.getElementById('search-obras').value = '';
+    document.getElementById('search-suggestions').classList.remove('show');
+    selPais.value=''; selCiudad.value=''; selUbicacion.value=''; refreshGeoLink();
+    refreshCiudadOptions(false); refreshUbicacionOptions(false);
+    selPaisOrigen.value=''; refreshCiudadOrigenOptions(false);
+    rangeDesde.value = FECHA_MIN; rangeHasta.value = FECHA_MAX; syncRangeUI();
+    for (let l = 0; l <= 5; l++) refreshCatOptions(l, false);
+
+    document.querySelectorAll('.chips-mini').forEach(w => w.innerHTML='');
+    document.querySelectorAll('.checklist input[type=checkbox]').forEach(cb => cb.checked=false);
+    document.querySelectorAll('.checklist-search').forEach(inp => inp.value='');
+    document.querySelectorAll('.checklist label').forEach(label => label.style.display='');
+
+    onFilterChanged();
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────
+  async function init() {
+    await loadReferenceData();
+
+    populateSelect(selPais, REF.paises, null);
+    refreshCiudadOptions(false);
+    refreshUbicacionOptions(false);
+    populateSelect(selPaisOrigen, REF.paises, null);
+    refreshCiudadOrigenOptions(false);
+    for (let l = 0; l <= 5; l++) refreshCatOptions(l, false);
+
+    Object.keys(FACET_META).forEach(field => {
+      const container = document.querySelector(`[data-facet="${field}"]`);
+      const hasSelect = container.querySelector('select');
+      const hasTypeahead = container.querySelector('.typeahead-input');
+      const hasChecklist = container.querySelector('.checklist');
+      if (hasSelect) initGenericFkFacet(field);
+      else if (hasTypeahead) initTypeahead(field);
+      else if (hasChecklist) initChecklist(field);
+    });
+
+    const searchInput = document.getElementById('search-obras');
+    const suggestionsBox = document.getElementById('search-suggestions');
+    let suggestionTimer;
+
+    async function fetchSearchSuggestions(query) {
+      if (!query) {
+        suggestionsBox.innerHTML = '';
+        suggestionsBox.classList.remove('show');
+        return;
+      }
+      const q = query.trim();
+      if (!q) {
+        suggestionsBox.innerHTML = '';
+        suggestionsBox.classList.remove('show');
+        return;
+      }
+      try {
+        // Las sugerencias son solo una ayuda visual; la búsqueda general ya cubre todos los filtros.
+        const filter = { titulo: { _icontains: q } };
+        const params = new URLSearchParams({ limit: '8', fields: 'id,titulo', sort: 'titulo', filter: JSON.stringify(filter) });
+        const j = await fetchJSON(`${API}/items/obras?${params}`);
+        const items = (j.data || []).slice(0, 8);
+        suggestionsBox.innerHTML = items.length
+          ? items.map(item => `<div data-id="${item.id}">${(item.titulo || '(Sin título)').replace(/</g, '&lt;')}</div>`).join('')
+          : `<div class="empty">Sin coincidencias de título</div>`;
+        suggestionsBox.classList.add('show');
+        suggestionsBox.querySelectorAll('div[data-id]').forEach(el => el.addEventListener('click', () => {
+          searchInput.value = el.textContent;
+          state.searchTitle = el.textContent;
+          suggestionsBox.classList.remove('show');
+          onFilterChanged();
+        }));
+      } catch {
+        suggestionsBox.innerHTML = '';
+        suggestionsBox.classList.remove('show');
+      }
+    }
+
+    searchInput.addEventListener('input', () => {
+      const value = searchInput.value.trim();
+      state.searchTitle = value || null;
+      onFilterChanged();
+      clearTimeout(suggestionTimer);
+      suggestionTimer = setTimeout(() => fetchSearchSuggestions(value), 160);
+    });
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        suggestionsBox.classList.remove('show');
+        onFilterChanged();
+      }
+    });
+    searchInput.addEventListener('blur', () => setTimeout(() => suggestionsBox.classList.remove('show'), 180));
+
+    await refreshResults();
+    refreshOpenSectionCounts();
+    await loadOverviewKpis();
+    updateVizMode();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
