@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ARCA Buscador con filtros</title>
+<link rel="preconnect" href="https://images.weserv.nl" crossorigin>
+<link rel="dns-prefetch" href="https://images.weserv.nl">
+<link rel="preconnect" href="https://apiarca.uniandes.edu.co" crossorigin>
 <style>
   :root {
     --bg: #0d0d0d;
@@ -346,10 +349,21 @@
     overflow: hidden; cursor: pointer; transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
   }
   .card:hover { background: var(--card-hover); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
-  .card-img, .card-img-placeholder {
-    width: 100%; aspect-ratio: 1; object-fit: cover; background: #1a1a1a; display: block;
+  .card-img, .card-img-placeholder, .card-thumb {
+    width: 100%; aspect-ratio: 1; object-fit: cover; display: block;
   }
-  .card-img-placeholder { display: flex; align-items: center; justify-content: center; color: #333; font-size: 2rem; }
+  .card-thumb {
+    position: relative; overflow: hidden;
+    background: linear-gradient(100deg, #161616 30%, #232323 50%, #161616 70%) #1a1a1a;
+    background-size: 220% 100%;
+    animation: card-img-shimmer 1.2s ease-in-out infinite;
+  }
+  .card-thumb.is-loaded { animation: none; background: #1a1a1a; }
+  @keyframes card-img-shimmer { from { background-position: 180% 0; } to { background-position: -80% 0; } }
+  @media (prefers-reduced-motion: reduce) { .card-thumb { animation: none; } .card-thumb .card-img { transition: none; } }
+  .card-thumb .card-img { position: absolute; inset: 0; opacity: 0; transition: opacity 0.25s ease; }
+  .card-thumb .card-img.is-loaded { opacity: 1; }
+  .card-img-placeholder { background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: #333; font-size: 2rem; }
   .card-id { font-size: 0.64rem; color: var(--muted2); font-family: system-ui, sans-serif; margin-top: 0.2rem; }
   .card-body { padding: 0.65rem 0.7rem; }
   .card-title {
@@ -390,6 +404,52 @@
   }
   .modal-close:hover { color: var(--accent); }
   .modal img { width: 100%; max-height: 340px; object-fit: contain; background: #000; border-radius: 4px; margin-bottom: 1rem; }
+  .modal .modal-figure { position: relative; display: block; margin-bottom: 1rem; cursor: zoom-in; }
+  .modal .modal-figure img { margin-bottom: 0; }
+  .modal .modal-figure::after {
+    content: '\1F50D  Ampliar'; position: absolute; right: 0.5rem; bottom: 0.5rem;
+    background: rgba(0,0,0,0.72); color: #fff; font-family: system-ui, sans-serif;
+    font-size: 0.68rem; letter-spacing: 0.03em; padding: 0.25rem 0.5rem; border-radius: 3px;
+    opacity: 0; transition: opacity 0.15s; pointer-events: none;
+  }
+  .modal .modal-figure:hover::after { opacity: 1; }
+
+  /* ── Lightbox / visor con zoom ── */
+  .lightbox { display: none; position: fixed; inset: 0; z-index: 80; background: #0b0b0b; }
+  .lightbox.show { display: block; }
+  .lightbox-stage {
+    position: absolute; inset: 0; overflow: hidden; cursor: grab; touch-action: none;
+  }
+  .lightbox-stage.is-panning { cursor: grabbing; }
+  #lightbox-img {
+    position: absolute; top: 50%; left: 50%; max-width: none; transform-origin: 0 0;
+    will-change: transform; user-select: none; -webkit-user-drag: none;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  }
+  .lightbox-spinner {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    color: var(--muted); font-family: system-ui, sans-serif; font-size: 0.8rem; letter-spacing: 0.06em;
+  }
+  .lightbox.is-loaded .lightbox-spinner { display: none; }
+  .lightbox-toolbar {
+    position: absolute; top: 1rem; right: 1rem; z-index: 2;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .lightbox-zoom {
+    color: var(--muted); font-family: system-ui, sans-serif; font-size: 0.72rem;
+    font-variant-numeric: tabular-nums; margin-right: 0.2rem; min-width: 3.2ch; text-align: right;
+  }
+  .lightbox-toolbar button {
+    width: 2.4rem; height: 2.4rem; border-radius: 4px; border: 1px solid var(--border);
+    background: rgba(22,22,22,0.9); color: var(--accent); font-size: 1.15rem; line-height: 1;
+    cursor: pointer; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center;
+  }
+  .lightbox-toolbar button:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+  .lightbox-hint {
+    position: absolute; left: 0; right: 0; bottom: 1rem; text-align: center; padding: 0 1rem;
+    color: var(--muted2); font-family: system-ui, sans-serif; font-size: 0.68rem; pointer-events: none;
+  }
+  @media (max-width: 600px) { .lightbox-hint { display: none; } }
   .modal h2 { font-size: 1.15rem; font-weight: 400; margin-bottom: 0.6rem; }
   .modal .sintesis { font-size: 0.85rem; color: var(--text); line-height: 1.5; margin-bottom: 1rem; }
   .modal dl { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.9rem; font-family: system-ui, sans-serif; font-size: 0.78rem; }
@@ -649,6 +709,21 @@
   <div class="modal" id="modal-content"></div>
 </div>
 
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <div class="lightbox-stage" id="lightbox-stage">
+    <img id="lightbox-img" alt="" draggable="false">
+    <div class="lightbox-spinner" id="lightbox-spinner">Cargando imagen&hellip;</div>
+  </div>
+  <div class="lightbox-toolbar">
+    <span class="lightbox-zoom" id="lightbox-zoom">100%</span>
+    <button type="button" data-lb="out" title="Alejar (−)" aria-label="Alejar">&minus;</button>
+    <button type="button" data-lb="in" title="Acercar (+)" aria-label="Acercar">+</button>
+    <button type="button" data-lb="reset" title="Ajustar a pantalla (0)" aria-label="Ajustar a pantalla">&#8862;</button>
+    <button type="button" data-lb="close" title="Cerrar (Esc)" aria-label="Cerrar">&times;</button>
+  </div>
+  <div class="lightbox-hint">Rueda del ratón o + / &minus; para hacer zoom · arrastra para desplazarte · doble clic alterna</div>
+</div>
+
 <script>
 window.addEventListener('error', e => { document.getElementById('debug-error').textContent = 'ERR: ' + e.message + ' @ ' + e.filename + ':' + e.lineno; });
 window.addEventListener('unhandledrejection', e => { document.getElementById('debug-error').textContent = 'REJ: ' + (e.reason && e.reason.stack || e.reason); });
@@ -772,41 +847,103 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
       .map(item => item.id);
   }
 
-  function buildSearchTermOr(term) {
+  // Palabras vacías del español: no aportan selectividad y, al cruzarse contra
+  // todas las colecciones de referencia, inflan el filtro hasta reventar la URL.
+  const SEARCH_STOPWORDS = new Set((
+    'de la el los las un una uno unos unas y o u a e en del al con sin sobre ' +
+    'por para que se su sus lo le les como mas más muy ya no nos otro otra ' +
+    'este esta esto esos esas ese esa entre desde hasta hacia contra tras'
+  ).split(' '));
+
+  const REF_SEARCH_FIELDS = [
+    ['pais', 'paises'], ['ciudad', 'ciudades'], ['ubicacion', 'ubicaciones'], ['ciudad_origen', 'ciudades'],
+    ['categoria1', 'categorias1'], ['categoria2', 'categorias2'], ['categoria3', 'categorias3'],
+    ['categoria4', 'categorias4'], ['categoria5', 'categorias5'], ['categoria6', 'categorias6'],
+    ['relato_visual', 'relatos_visuales'], ['donante', 'donantes'], ['cartela_filacteria', 'cartelas_filacterias'],
+    ['fisiognomica', 'fisiognomicas'], ['fisiognomica_imagen', 'fisiognomicas_imagen'], ['rostro', 'rostros'],
+    ['tipo_gestual', 'tipos_gestuales'], ['gesto1', 'gestos'], ['gesto2', 'gestos'], ['gesto3', 'gestos'],
+    ['complejo_gestual', 'complejos_gestuales'],
+  ];
+  // Tope de ids por cláusula _in: por encima de esto el término no discrimina
+  // y solo agranda la petición.
+  const MAX_IDS_PER_CLAUSE = 120;
+
+  // El _icontains de Directus es insensible a mayúsculas pero SENSIBLE a acentos:
+  // "agustin" no encuentra "Agustín". Como en español una palabra lleva a lo sumo
+  // una tilde (más, aparte, la ñ), generamos esas variantes y las cruzamos con _or.
+  const ACENTO_VOCAL = { a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú' };
+  function textVariants(term) {
+    const t = norm(term);                       // sin acentos, minúsculas
+    if (!t) return [term];
+    const out = new Set([term.toLowerCase(), t]);
+    const bases = new Set([t]);
+    // cada "n" -> "ñ" por separado
+    [...t].forEach((ch, i) => {
+      if (ch === 'n') { const c = [...t]; c[i] = 'ñ'; const v = c.join(''); out.add(v); bases.add(v); }
+    });
+    // sobre cada base (con y sin ñ), una vocal acentuada a la vez
+    bases.forEach(base => {
+      [...base].forEach((ch, i) => {
+        if (ACENTO_VOCAL[ch]) { const c = [...base]; c[i] = ACENTO_VOCAL[ch]; out.add(c.join('')); }
+      });
+    });
+    return [...out].slice(0, 24);
+  }
+  const freeTextClauses = (term, fields = ['titulo', 'sintesis'], maxVariants = 24) =>
+    textVariants(term).slice(0, maxVariants).flatMap(v => fields.map(f => ({ [f]: { _icontains: v } })));
+
+  function buildSearchTermOr(term, budget) {
     const q = term.trim();
     if (!q) return [];
-    const or = [
-      { titulo: { _icontains: q } },
-      { sintesis: { _icontains: q } },
-    ];
-    const refSearches = [
-      ['pais', 'paises'], ['ciudad', 'ciudades'], ['ubicacion', 'ubicaciones'], ['ciudad_origen', 'ciudades'],
-      ['categoria1', 'categorias1'], ['categoria2', 'categorias2'], ['categoria3', 'categorias3'],
-      ['categoria4', 'categorias4'], ['categoria5', 'categorias5'], ['categoria6', 'categorias6'],
-      ['relato_visual', 'relatos_visuales'], ['donante', 'donantes'], ['cartela_filacteria', 'cartelas_filacterias'],
-      ['fisiognomica', 'fisiognomicas'], ['fisiognomica_imagen', 'fisiognomicas_imagen'], ['rostro', 'rostros'],
-      ['tipo_gestual', 'tipos_gestuales'], ['gesto1', 'gestos'], ['gesto2', 'gestos'], ['gesto3', 'gestos'],
-      ['complejo_gestual', 'complejos_gestuales'],
-    ];
-    refSearches.forEach(([field, collection]) => {
+    const or = freeTextClauses(q);
+    // El cruce contra colecciones de referencia solo se hace para términos
+    // "significativos" (≥ 4 caracteres y no vacíos) y mientras quede presupuesto.
+    if (!budget || q.length < 4 || SEARCH_STOPWORDS.has(norm(q))) return or;
+    const tryPush = (clause, ids) => {
+      if (!ids.length || ids.length > MAX_IDS_PER_CLAUSE || ids.length > budget.left) return;
+      budget.left -= ids.length;
+      or.push(clause);
+    };
+    REF_SEARCH_FIELDS.forEach(([field, collection]) => {
       const ids = matchingReferenceIds(collection, q);
-      if (ids.length) or.push({ [field]: { _in: ids } });
+      tryPush({ [field]: { _in: ids } }, ids);
     });
     M2M_FIELDS.forEach(field => {
       const meta = FACET_META[field];
       const ids = matchingReferenceIds(meta.collection, q, field === 'autores'
         ? item => [item.nombre, item.apellido].filter(Boolean).join(' ')
         : undefined);
-      if (ids.length) or.push({ [field]: { [field + '_id']: { _in: ids } } });
+      tryPush({ [field]: { [field + '_id']: { _in: ids } } }, ids);
     });
     return or;
   }
 
+  // nginx corta la URI de la petición alrededor de los 8 KB, así que mantenemos
+  // el filtro por debajo de este presupuesto degradándolo por pasos. Si una
+  // petición aun así falla, refreshResults baja este valor y reintenta.
+  const SEARCH_FILTER_BUDGET_DEFAULT = 5200;
+  let searchFilterBudget = SEARCH_FILTER_BUDGET_DEFAULT;
+  const encLen = obj => encodeURIComponent(JSON.stringify(obj)).length;
+
   function buildSearchFilter(query) {
     const terms = query.trim().split(/\s+/).filter(Boolean);
-    const termFilters = terms.map(term => ({ _or: buildSearchTermOr(term) }));
-    if (!termFilters.length) return null;
-    return termFilters.length === 1 ? termFilters[0] : { _and: termFilters };
+    if (!terms.length) return null;
+
+    // Del más completo al más liviano; nos quedamos con el primero que quepa.
+    const modes = [
+      () => { const b = { left: 300 }; return terms.map(t => ({ _or: buildSearchTermOr(t, b) })); },          // variantes en título + síntesis + referencias
+      () => terms.map(t => ({ _or: freeTextClauses(t, ['titulo', 'sintesis'], 12) })),
+      () => terms.map(t => ({ _or: freeTextClauses(t, ['titulo'], 12) })),                                     // solo título
+      () => terms.map(t => ({ _or: freeTextClauses(t, ['titulo'], 6) })),
+      () => terms.map(t => ({ _or: freeTextClauses(t, ['titulo'], 3) })),
+    ];
+    let last = null;
+    for (const make of modes) {
+      const tf = make();
+      last = tf.length === 1 ? tf[0] : { _and: tf };
+      if (encLen(last) <= searchFilterBudget) return last;
+    }
+    return last;   // ninguno cupo: se usa el más liviano y, si aún falla, lo captura refreshResults
   }
 
   // ── Directus filter builder ──────────────────────────────────────
@@ -863,7 +1000,7 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
   async function fetchObras(off) {
     const filter = buildFilter([]);
     const params = new URLSearchParams({
-      fields: 'id,titulo,imagen,fecha_inicial,fecha_final,pais,ciudad',
+      fields: 'id,titulo,imagen,fecha_inicial,fecha_final,pais,ciudad,registro',
       limit: String(PAGE_SIZE), offset: String(off), sort: 'fecha_inicial,id', meta: 'filter_count',
     });
     if (Object.keys(filter).length) params.set('filter', JSON.stringify(filter));
@@ -874,7 +1011,8 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
   //    since the Directus instance disables dynamic asset transforms) ──
   function imgUrl(uuid, w) {
     const src = `apiarca.uniandes.edu.co/assets/${uuid}`;
-    return `https://images.weserv.nl/?url=${src}&w=${w}&h=${w}&fit=cover&output=webp&q=60`;
+    // maxage=1y: que el navegador guarde la miniatura en caché entre sesiones.
+    return `https://images.weserv.nl/?url=${src}&w=${w}&h=${w}&fit=cover&output=webp&q=60&we&maxage=1y`;
   }
 
   function dateRange(o) {
@@ -885,8 +1023,10 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
 
   // ── Results rendering ────────────────────────────────────────────
   function cardHTML(o) {
+    const onload = "this.classList.add('is-loaded');this.parentNode&&this.parentNode.classList.add('is-loaded')";
+    const onerror = "this.parentNode.replaceWith(Object.assign(document.createElement('div'),{className:'card-img-placeholder',textContent:'✦'}))";
     const img = o.imagen
-      ? `<img class="card-img" src="${imgUrl(o.imagen, 320)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'card-img-placeholder',textContent:'✦'}))">`
+      ? `<div class="card-thumb"><img class="card-img" src="${imgUrl(o.imagen, 320)}" alt="" width="320" height="320" loading="lazy" decoding="async" onload="${onload}" onerror="${onerror}"></div>`
       : `<div class="card-img-placeholder">&#10022;</div>`;
     const lugar = [nombreDe('ciudades', o.ciudad), nombreDe('paises', o.pais)].filter(Boolean).join(', ');
     const title = document.createElement('div'); title.textContent = o.titulo || '(Sin título)';
@@ -896,7 +1036,7 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
         <p class="card-title">${title.innerHTML}</p>
         <p class="card-meta">${dateRange(o)}</p>
         ${lugar ? `<p class="card-meta2">${lugar}</p>` : ''}
-        <p class="card-id">ID: #${o.id}</p>
+        <p class="card-id">#${o.registro ?? o.id}</p>
       </div>
     </div>`;
   }
@@ -913,6 +1053,12 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
       if (el.dataset.wired) return;
       el.dataset.wired = '1';
       el.addEventListener('click', () => openModal(el.dataset.id));
+      // Si la miniatura ya estaba en caché, onload pudo dispararse antes de tiempo.
+      const im = el.querySelector('img.card-img');
+      if (im && im.complete && im.naturalWidth) {
+        im.classList.add('is-loaded');
+        im.parentNode.classList.add('is-loaded');
+      }
     });
   }
 
@@ -921,7 +1067,25 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     document.getElementById('grid').innerHTML = `<div class="loading-msg">Buscando&hellip;</div>`;
     document.getElementById('load-more-wrap').style.display = 'none';
     const mySeq = ++reqSeq;
-    const j = await fetchObras(0);
+    let j;
+    try {
+      j = await fetchObras(0);
+    } catch (err) {
+      if (mySeq !== reqSeq) return;
+      // Reintento con un filtro mínimo (solo título) por si la URL fue rechazada.
+      try {
+        searchFilterBudget = 1200;
+        j = await fetchObras(0);
+      } catch (err2) {
+        if (mySeq !== reqSeq) return;
+        document.getElementById('grid').innerHTML =
+          `<div class="empty-msg">No se pudo completar la búsqueda. Intenta con menos palabras o términos más específicos.</div>`;
+        document.getElementById('results-stats').innerHTML = '';
+        return;
+      } finally {
+        searchFilterBudget = SEARCH_FILTER_BUDGET_DEFAULT;
+      }
+    }
     if (mySeq !== reqSeq) return;
     currentTotal = j.meta.filter_count;
     offset = j.data.length;
@@ -935,7 +1099,13 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     const btn = document.getElementById('load-more-btn');
     btn.disabled = true; btn.textContent = 'Cargando...';
     const mySeq = reqSeq;
-    const j = await fetchObras(offset);
+    let j;
+    try {
+      j = await fetchObras(offset);
+    } catch (err) {
+      btn.disabled = false; btn.textContent = 'Cargar más';
+      return;
+    }
     if (mySeq === reqSeq) {
       offset += j.data.length;
       renderGrid(j.data, false);
@@ -977,6 +1147,7 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     const rows = [];
     const add = (label, val) => { if (val) rows.push(`<dt>${label}</dt><dd>${val}</dd>`); };
 
+    add('Registro', o.registro != null ? '#' + o.registro : null);
     add('Fecha', dateRange(o));
     add('Ubicación actual', [nombreDe('ubicaciones', o.ubicacion), nombreDe('ciudades', o.ciudad), nombreDe('paises', o.pais)].filter(Boolean).join(' · '));
     add('Lugar de origen', nombreDe('ciudades', o.ciudad_origen));
@@ -1007,15 +1178,160 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
 
     content.innerHTML = `
       <button class="modal-close" id="modal-close">&times;</button>
-      ${o.imagen ? `<img src="${imgUrl(o.imagen, 700)}" alt="">` : ''}
+      ${o.imagen ? `<span class="modal-figure" data-uuid="${o.imagen}" role="button" tabindex="0" title="Ampliar imagen"><img src="${imgUrl(o.imagen, 700)}" alt=""></span>` : ''}
       <h2>${titleEl.innerHTML}</h2>
       ${o.sintesis ? `<p class="sintesis">${sintesisEl.innerHTML}</p>` : ''}
       <dl>${rows.join('')}</dl>
     `;
     document.getElementById('modal-close').addEventListener('click', closeModal);
+    const fig = content.querySelector('.modal-figure');
+    if (fig) {
+      const open = () => openLightbox(fig.dataset.uuid, o.titulo || '');
+      fig.addEventListener('click', open);
+      fig.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+    }
   }
   function closeModal() { document.getElementById('modal-backdrop').classList.remove('show'); }
   document.getElementById('modal-backdrop').addEventListener('click', e => { if (e.target.id === 'modal-backdrop') closeModal(); });
+
+  // ── Lightbox con zoom / desplazamiento ───────────────────────────
+  const lb = document.getElementById('lightbox');
+  const lbStage = document.getElementById('lightbox-stage');
+  const lbImg = document.getElementById('lightbox-img');
+  const lbZoomLabel = document.getElementById('lightbox-zoom');
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+  let lbBase = 1, lbScale = 1, lbMax = 8, lbTx = 0, lbTy = 0;
+  let lbNatW = 0, lbNatH = 0;
+
+  function lbApply() {
+    // Mantener la imagen cubriendo/centrando el escenario según su tamaño.
+    const r = lbStage.getBoundingClientRect();
+    const iw = lbNatW * lbScale, ih = lbNatH * lbScale;
+    lbTx = iw <= r.width ? -iw / 2 : clamp(lbTx, r.width / 2 - iw, -r.width / 2);
+    lbTy = ih <= r.height ? -ih / 2 : clamp(lbTy, r.height / 2 - ih, -r.height / 2);
+    lbImg.style.transform = `translate(${lbTx}px, ${lbTy}px) scale(${lbScale})`;
+    lbZoomLabel.textContent = Math.round(lbScale * 100) + '%';
+  }
+  function lbFit() {
+    const r = lbStage.getBoundingClientRect();
+    lbBase = Math.min(1, Math.min(r.width / lbNatW, r.height / lbNatH) || 1);
+    lbMax = Math.max(lbBase * 8, 4);
+    lbScale = lbBase;
+    lbApply();
+  }
+  function lbZoomAt(factor, clientX, clientY) {
+    const r = lbStage.getBoundingClientRect();
+    const px = clientX - r.left - r.width / 2;
+    const py = clientY - r.top - r.height / 2;
+    const next = clamp(lbScale * factor, lbBase, lbMax);
+    const k = next / lbScale;
+    lbTx = px - k * (px - lbTx);
+    lbTy = py - k * (py - lbTy);
+    lbScale = next;
+    lbApply();
+  }
+  const lbCenter = () => {
+    const r = lbStage.getBoundingClientRect();
+    return [r.left + r.width / 2, r.top + r.height / 2];
+  };
+
+  function openLightbox(uuid, alt) {
+    lb.classList.add('show');
+    lb.classList.remove('is-loaded');
+    lb.setAttribute('aria-hidden', 'false');
+    document.getElementById('lightbox-spinner').textContent = 'Cargando imagen…';
+    lbImg.alt = alt || '';
+    lbImg.removeAttribute('src');
+    lbNatW = lbNatH = 0;
+    // Pedimos la mayor resolución disponible (weserv no amplía con &we).
+    lbImg.src = `https://images.weserv.nl/?url=apiarca.uniandes.edu.co/assets/${uuid}&w=3000&output=webp&q=82&we&maxage=1y`;
+  }
+  function closeLightbox() {
+    lb.classList.remove('show');
+    lb.setAttribute('aria-hidden', 'true');
+    lbImg.removeAttribute('src');
+  }
+
+  lbImg.addEventListener('load', () => {
+    if (!lbImg.src) return;
+    lbNatW = lbImg.naturalWidth || 1;
+    lbNatH = lbImg.naturalHeight || 1;
+    lb.classList.add('is-loaded');
+    lbFit();
+  });
+  lbImg.addEventListener('error', () => { lb.classList.add('is-loaded'); document.getElementById('lightbox-spinner').textContent = 'No se pudo cargar la imagen.'; });
+
+  lb.querySelector('.lightbox-toolbar').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const act = b.dataset.lb;
+    if (act === 'close') return closeLightbox();
+    if (act === 'reset') return lbFit();
+    if (act === 'in') return lbZoomAt(1.4, ...lbCenter());
+    if (act === 'out') return lbZoomAt(1 / 1.4, ...lbCenter());
+  });
+
+  lbStage.addEventListener('wheel', e => {
+    e.preventDefault();
+    lbZoomAt(e.deltaY < 0 ? 1.18 : 1 / 1.18, e.clientX, e.clientY);
+  }, { passive: false });
+
+  lbStage.addEventListener('dblclick', e => {
+    e.preventDefault();
+    if (lbScale > lbBase * 1.05) lbFit();
+    else lbZoomAt((Math.max(1, lbBase * 3)) / lbScale, e.clientX, e.clientY);
+  });
+
+  // Arrastre y pellizco (pointer events unifican ratón y táctil).
+  const lbPointers = new Map();
+  let lbMoved = 0, lbPinchDist = 0;
+  lbStage.addEventListener('pointerdown', e => {
+    lbStage.setPointerCapture(e.pointerId);
+    lbPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    lbMoved = 0;
+    if (lbPointers.size === 2) {
+      const [a, b] = [...lbPointers.values()];
+      lbPinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+    } else {
+      lbStage.classList.add('is-panning');
+    }
+  });
+  lbStage.addEventListener('pointermove', e => {
+    const p = lbPointers.get(e.pointerId); if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    lbMoved += Math.abs(dx) + Math.abs(dy);
+    if (lbPointers.size === 2) {
+      const [a, b] = [...lbPointers.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (lbPinchDist > 0) lbZoomAt(dist / lbPinchDist, (a.x + b.x) / 2, (a.y + b.y) / 2);
+      lbPinchDist = dist;
+    } else {
+      lbTx += dx; lbTy += dy;
+      lbApply();
+    }
+  });
+  const lbEndPointer = e => {
+    lbPointers.delete(e.pointerId);
+    if (lbPointers.size < 2) lbPinchDist = 0;
+    if (lbPointers.size === 0) {
+      lbStage.classList.remove('is-panning');
+      // Clic limpio sobre el fondo (no sobre la imagen) => cerrar.
+      if (lbMoved < 5 && e.target !== lbImg) closeLightbox();
+    }
+  };
+  lbStage.addEventListener('pointerup', lbEndPointer);
+  lbStage.addEventListener('pointercancel', lbEndPointer);
+
+  window.addEventListener('resize', () => { if (lb.classList.contains('show')) lbApply(); });
+
+  document.addEventListener('keydown', e => {
+    if (!lb.classList.contains('show')) return;
+    if (e.key === 'Escape') { e.stopPropagation(); closeLightbox(); }
+    else if (e.key === '+' || e.key === '=') lbZoomAt(1.4, ...lbCenter());
+    else if (e.key === '-' || e.key === '_') lbZoomAt(1 / 1.4, ...lbCenter());
+    else if (e.key === '0') lbFit();
+  }, true);
 
   // ── Generic FK select facets ─────────────────────────────────────
   const fkSelectEls = {}; // field -> <select>
@@ -1677,7 +1993,8 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
       }
       try {
         // Las sugerencias son solo una ayuda visual; la búsqueda general ya cubre todos los filtros.
-        const filter = { titulo: { _icontains: q } };
+        // _icontains es sensible a acentos, así que probamos variantes (véase textVariants).
+        const filter = { _or: freeTextClauses(q, ['titulo'], 24) };
         const params = new URLSearchParams({ limit: '8', fields: 'id,titulo', sort: 'titulo', filter: JSON.stringify(filter) });
         const j = await fetchJSON(`${API}/items/obras?${params}`);
         const items = (j.data || []).slice(0, 8);
