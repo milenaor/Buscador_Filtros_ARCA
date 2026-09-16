@@ -150,6 +150,26 @@
   }
   .bar-row:hover .bar-fill { filter: brightness(1.15); }
   .bar-row:hover .bar-track { border-color: var(--accent); }
+  .viz-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.6rem; }
+  .viz-card-head h3 { margin-bottom: 0; }
+  .viz-actions { display: flex; gap: 0.3rem; flex: none; }
+  .viz-btn {
+    background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    font-family: system-ui, sans-serif; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 0.2rem 0.45rem; border-radius: 3px; cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .viz-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .viz-btn:disabled { opacity: 0.4; cursor: default; }
+  .viz-export-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+    margin-bottom: 1rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border);
+  }
+  .viz-export-bar.bottom {
+    margin: 1rem 0 0; padding: 0.7rem 0 0;
+    border-bottom: none; border-top: 1px solid var(--border);
+  }
+  .viz-export-bar span { font-size: 0.66rem; color: var(--muted2); }
   .viz-tooltip {
     position: fixed; pointer-events: none; z-index: 50;
     background: var(--surface2); border: 1px solid var(--accent);
@@ -616,16 +636,16 @@
           <div class="checklist"></div>
         </div>
 
-        <div class="facet" data-facet="relato_visual"><label>Relato visual</label><select></select></div>
-        <div class="facet" data-facet="donante"><label>Donante</label><select></select></div>
-        <div class="facet" data-facet="cartela_filacteria"><label>Cartela / Filacteria</label><select></select></div>
-
         <div class="facet" data-facet="descriptores">
           <label>Descriptores</label>
           <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varios; escribe para filtrar la lista.</p>
           <input type="text" class="checklist-search" placeholder="Filtrar descriptores&hellip;">
           <div class="checklist"></div>
         </div>
+
+        <div class="facet" data-facet="relato_visual"><label>Relato visual</label><select></select></div>
+        <div class="facet" data-facet="donante"><label>Donante</label><select></select></div>
+        <div class="facet" data-facet="cartela_filacteria"><label>Cartela / Filacteria</label><select></select></div>
 
         <div class="facet" data-facet="personajes">
           <label>Personaje central / tema</label>
@@ -680,23 +700,61 @@
     <div class="viz-kpis" id="viz-kpis">
       <p class="viz-intro">Así es la colección completa de ARCA, antes de aplicar cualquier filtro.</p>
       <div class="kpi-grid" id="viz-kpis-body"><p class="viz-empty">Cargando resumen&hellip;</p></div>
+      <div class="viz-export-bar bottom">
+        <span>Exportar el resumen</span>
+        <div class="viz-actions">
+          <button class="viz-btn" data-export="kpis-csv" title="Descargar el resumen en CSV">CSV</button>
+          <button class="viz-btn" data-export="kpis-png" title="Descargar el resumen como imagen">PNG</button>
+        </div>
+      </div>
     </div>
 
     <div class="viz-charts" id="viz-charts" style="display:none">
+      <div class="viz-export-bar">
+        <span>Exportar esta selección</span>
+        <div class="viz-actions">
+          <button class="viz-btn" data-export="all-csv" title="Descargar todos los gráficos en un CSV">CSV</button>
+          <button class="viz-btn" data-export="all-png" title="Descargar el tablero completo como imagen">PNG</button>
+        </div>
+      </div>
       <div class="viz-card" data-viz="categoria1">
-        <h3>Por clasificación (nivel 1)</h3>
+        <div class="viz-card-head">
+          <h3>Por clasificación (nivel 1)</h3>
+          <div class="viz-actions">
+            <button class="viz-btn" data-export="csv" title="Descargar los datos de este gráfico en CSV">CSV</button>
+            <button class="viz-btn" data-export="png" title="Descargar este gráfico como imagen">PNG</button>
+          </div>
+        </div>
         <div class="viz-body"></div>
       </div>
       <div class="viz-card" data-viz="pais">
-        <h3>Por país (ubicación actual)</h3>
+        <div class="viz-card-head">
+          <h3>Por país (ubicación actual)</h3>
+          <div class="viz-actions">
+            <button class="viz-btn" data-export="csv" title="Descargar los datos de este gráfico en CSV">CSV</button>
+            <button class="viz-btn" data-export="png" title="Descargar este gráfico como imagen">PNG</button>
+          </div>
+        </div>
         <div class="viz-body"></div>
       </div>
       <div class="viz-card" data-viz="decada">
-        <h3>Por década</h3>
+        <div class="viz-card-head">
+          <h3>Por década</h3>
+          <div class="viz-actions">
+            <button class="viz-btn" data-export="csv" title="Descargar los datos de este gráfico en CSV">CSV</button>
+            <button class="viz-btn" data-export="png" title="Descargar este gráfico como imagen">PNG</button>
+          </div>
+        </div>
         <div class="viz-body"></div>
       </div>
       <div class="viz-card" data-viz="relato_visual">
-        <h3>Por relato visual</h3>
+        <div class="viz-card-head">
+          <h3>Por relato visual</h3>
+          <div class="viz-actions">
+            <button class="viz-btn" data-export="csv" title="Descargar los datos de este gráfico en CSV">CSV</button>
+            <button class="viz-btn" data-export="png" title="Descargar este gráfico como imagen">PNG</button>
+          </div>
+        </div>
         <div class="viz-body"></div>
       </div>
     </div>
@@ -913,7 +971,7 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
       const ids = matchingReferenceIds(meta.collection, q, field === 'autores'
         ? item => [item.nombre, item.apellido].filter(Boolean).join(' ')
         : undefined);
-      tryPush({ [field]: { [field + '_id']: { _in: ids } } }, ids);
+      tryPush({ [field]: { _some: { [field + '_id']: { _in: ids } } } }, ids);
     });
     return or;
   }
@@ -956,7 +1014,10 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     });
     M2M_FIELDS.forEach(f => {
       if (!ex.has(f) && state[f].length) {
-        state[f].forEach(id => and.push({ [f]: { [f + '_id']: { _eq: id } } }));
+        // '_some' es imprescindible al marcar varias opciones de una misma lista:
+        // sin él, Directus junta las condiciones sobre una única fila de la tabla
+        // de unión y exigir dos valores a la vez nunca devuelve nada.
+        state[f].forEach(id => and.push({ [f]: { _some: { [f + '_id']: { _eq: id } } } }));
       }
     });
     if (!ex.has('ciudad_origen') && !state.ciudad_origen && state.origenPaisUI) {
@@ -1766,6 +1827,7 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
         { label: 'Técnicas registradas', value: REF.tecnicas.length.toLocaleString('es-CO') },
         { label: 'Rango de fechas', value: `${FECHA_MIN}–${FECHA_MAX}`, wide: true },
       ];
+      vizData.kpis = tiles;
       body.innerHTML = tiles.map(t =>
         `<div class="kpi-tile${t.wide ? ' wide' : ''}"><div class="kpi-value">${t.value}</div><div class="kpi-label">${t.label}</div></div>`
       ).join('');
@@ -1869,15 +1931,285 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
       entries.forEach(([key], i) => {
         const body = document.querySelector(`.viz-card[data-viz="${key}"] .viz-body`);
         if (body) renderBarChart(body, rowsList[i]);
+        rememberVizRows(key, rowsList[i]);
       });
       const decadaBody = document.querySelector('.viz-card[data-viz="decada"] .viz-body');
       if (decadaBody) renderBarChart(decadaBody, decadaRows);
+      rememberVizRows('decada', decadaRows);
     } catch {
       // silently keep the previous render on error
     } finally {
       if (mySeq === vizReqSeq) panel.classList.remove('loading');
     }
   }
+
+  // ── Exportación de las visualizaciones ──────────────────────────────
+  //    Los gráficos se dibujan con divs, así que el PNG se vuelve a pintar
+  //    en un canvas a partir de los mismos datos (nada de capturas de pantalla).
+  const vizData = { kpis: null, charts: {} };
+
+  function rememberVizRows(key, rows) {
+    const card = document.querySelector(`.viz-card[data-viz="${key}"]`);
+    vizData.charts[key] = { title: card ? card.querySelector('h3').textContent : key, rows };
+    if (card) card.querySelectorAll('.viz-btn').forEach(b => { b.disabled = !rows.length; });
+  }
+
+  function vizChartKeys() {
+    return Array.from(document.querySelectorAll('#viz-charts .viz-card')).map(c => c.dataset.viz);
+  }
+
+  const EXPORT_COLORS = {
+    bg: '#0d0d0d', surface: '#161616', border: '#252525',
+    accent: '#c9a84c', accentDim: 'rgba(201,168,76,0.35)',
+    text: '#e2e2e2', muted: '#8a8a8a',
+  };
+  const EXPORT_FONT = 'system-ui, "Segoe UI", sans-serif';
+  const EXP = { W: 760, PAD: 34, ROW: 36, KPI_ROW: 32, TITLE_H: 30, GAP: 20 };
+
+  function exportStamp() {
+    const d = new Date(), pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+  }
+  function exportFilterLine() {
+    const parts = facetSummary().map(([, label]) => label);
+    return parts.length ? parts.join('  ·  ') : 'Colección completa (sin filtros)';
+  }
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ── CSV ─────────────────────────────────────────────────────────────
+  //    Con ';' y BOM para que Excel en español lo abra sin el asistente de
+  //    importación; las filas '#' del encabezado dejan constancia de los filtros.
+  function csvCell(v) {
+    const str = String(v == null ? '' : v);
+    return /[";\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+  }
+  function downloadCSV(filename, rows) {
+    const text = '﻿' + rows.map(r => r.map(csvCell).join(';')).join('\r\n');
+    downloadBlob(new Blob([text], { type: 'text/csv;charset=utf-8' }), filename);
+  }
+  function csvPreamble(titulo) {
+    return [
+      ['# ARCA — ' + titulo],
+      ['# Filtros', exportFilterLine()],
+      ['# Generado', new Date().toLocaleString('es-CO')],
+      [],
+    ];
+  }
+  function pctOf(count, total) {
+    return total ? (count / total * 100).toFixed(1).replace('.', ',') : '0,0';
+  }
+
+  function exportChartCSV(key) {
+    const entry = vizData.charts[key];
+    if (!entry || !entry.rows.length) return;
+    const total = entry.rows.reduce((s, r) => s + r.count, 0);
+    downloadCSV(`arca_${key}_${exportStamp()}.csv`, [
+      ...csvPreamble(entry.title),
+      ['Categoría', 'Obras', '% del subtotal'],
+      ...entry.rows.map(r => [r.name, r.count, pctOf(r.count, total)]),
+      ['Total', total, ''],
+    ]);
+  }
+
+  function exportAllChartsCSV() {
+    const entries = vizChartKeys().map(k => vizData.charts[k]).filter(e => e && e.rows.length);
+    if (!entries.length) return;
+    const rows = [...csvPreamble('Tablero de la selección'), ['Gráfico', 'Categoría', 'Obras', '% del subtotal']];
+    entries.forEach(entry => {
+      const total = entry.rows.reduce((s, r) => s + r.count, 0);
+      entry.rows.forEach(r => rows.push([entry.title, r.name, r.count, pctOf(r.count, total)]));
+    });
+    downloadCSV(`arca_tablero_${exportStamp()}.csv`, rows);
+  }
+
+  function exportKpisCSV() {
+    if (!vizData.kpis) return;
+    downloadCSV(`arca_resumen_${exportStamp()}.csv`, [
+      ...csvPreamble('Resumen de la colección'),
+      ['Indicador', 'Valor'],
+      ...vizData.kpis.map(t => [t.label, t.value]),
+    ]);
+  }
+
+  // ── PNG ─────────────────────────────────────────────────────────────
+  function canvasRoundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+    else ctx.rect(x, y, w, h);
+  }
+  function wrapLines(ctx, text, maxW) {
+    const lines = [];
+    let line = '';
+    String(text).split(/\s+/).forEach(word => {
+      const test = line ? line + ' ' + word : word;
+      if (line && ctx.measureText(test).width > maxW) { lines.push(line); line = word; }
+      else line = test;
+    });
+    if (line) lines.push(line);
+    return lines;
+  }
+  function truncateText(ctx, text, maxW) {
+    let str = String(text);
+    if (ctx.measureText(str).width <= maxW) return str;
+    while (str.length > 1 && ctx.measureText(str + '…').width > maxW) str = str.slice(0, -1);
+    return str + '…';
+  }
+
+  function blockHeight(block) {
+    const bodyH = block.kpis ? block.kpis.length * EXP.KPI_ROW : block.rows.length * EXP.ROW;
+    return EXP.TITLE_H + bodyH + EXP.GAP;
+  }
+
+  function drawExportBlock(ctx, y, block) {
+    const x = EXP.PAD, w = EXP.W - EXP.PAD * 2;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = EXPORT_COLORS.text;
+    ctx.font = `600 15px ${EXPORT_FONT}`;
+    ctx.fillText(block.title, x, y + 14);
+    y += EXP.TITLE_H;
+
+    if (block.kpis) {
+      block.kpis.forEach(item => {
+        ctx.font = `600 16px ${EXPORT_FONT}`;
+        ctx.textAlign = 'right';
+        ctx.fillStyle = EXPORT_COLORS.accent;
+        ctx.fillText(String(item.value), x + w, y + 14);
+        ctx.font = `13px ${EXPORT_FONT}`;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = EXPORT_COLORS.text;
+        ctx.fillText(item.label, x, y + 14);
+        ctx.strokeStyle = EXPORT_COLORS.border;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y + 24.5);
+        ctx.lineTo(x + w, y + 24.5);
+        ctx.stroke();
+        y += EXP.KPI_ROW;
+      });
+      return y + EXP.GAP;
+    }
+
+    const max = Math.max(1, ...block.rows.map(r => r.count));
+    block.rows.forEach(row => {
+      ctx.font = `13px ${EXPORT_FONT}`;
+      const valTxt = row.count.toLocaleString('es-CO');
+      const valW = ctx.measureText(valTxt).width;
+      ctx.textAlign = 'right';
+      ctx.fillStyle = EXPORT_COLORS.muted;
+      ctx.fillText(valTxt, x + w, y + 12);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = EXPORT_COLORS.text;
+      ctx.fillText(truncateText(ctx, row.name, w - valW - 16), x, y + 12);
+
+      const trackY = y + 19;
+      ctx.fillStyle = EXPORT_COLORS.surface;
+      canvasRoundRect(ctx, x, trackY, w, 11, 5.5);
+      ctx.fill();
+      ctx.strokeStyle = EXPORT_COLORS.border;
+      ctx.lineWidth = 1;
+      canvasRoundRect(ctx, x + 0.5, trackY + 0.5, w - 1, 10, 5);
+      ctx.stroke();
+      const fillW = Math.max(4, w * row.count / max);
+      const grad = ctx.createLinearGradient(x, 0, x + fillW, 0);
+      grad.addColorStop(0, EXPORT_COLORS.accentDim);
+      grad.addColorStop(1, EXPORT_COLORS.accent);
+      ctx.fillStyle = grad;
+      canvasRoundRect(ctx, x, trackY, fillW, 11, 5.5);
+      ctx.fill();
+      y += EXP.ROW;
+    });
+    return y + EXP.GAP;
+  }
+
+  function renderExportCanvas(heading, blocks) {
+    const inner = EXP.W - EXP.PAD * 2;
+    const measure = document.createElement('canvas').getContext('2d');
+    measure.font = `12px ${EXPORT_FONT}`;
+    const subLines = wrapLines(measure, 'Filtros: ' + exportFilterLine(), inner);
+
+    let h = EXP.PAD + 26 + subLines.length * 16 + 18;
+    blocks.forEach(b => { h += blockHeight(b); });
+    h += 30;
+    h = Math.round(h);
+
+    const dpr = 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = EXP.W * dpr;
+    canvas.height = h * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = EXPORT_COLORS.bg;
+    ctx.fillRect(0, 0, EXP.W, h);
+
+    let y = EXP.PAD;
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = EXPORT_COLORS.accent;
+    ctx.font = `600 18px ${EXPORT_FONT}`;
+    ctx.fillText(heading, EXP.PAD, y + 16);
+    y += 26;
+    ctx.fillStyle = EXPORT_COLORS.muted;
+    ctx.font = `12px ${EXPORT_FONT}`;
+    subLines.forEach(line => { ctx.fillText(line, EXP.PAD, y + 11); y += 16; });
+    y += 8;
+    ctx.strokeStyle = EXPORT_COLORS.border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(EXP.PAD, y + 0.5);
+    ctx.lineTo(EXP.W - EXP.PAD, y + 0.5);
+    ctx.stroke();
+    y += 10;
+
+    blocks.forEach(b => { y = drawExportBlock(ctx, y, b); });
+
+    ctx.fillStyle = EXPORT_COLORS.muted;
+    ctx.font = `11px ${EXPORT_FONT}`;
+    ctx.fillText('ARCA · Universidad de los Andes — ' + new Date().toLocaleString('es-CO'), EXP.PAD, h - 14);
+    return canvas;
+  }
+
+  function downloadCanvas(canvas, filename) {
+    canvas.toBlob(blob => { if (blob) downloadBlob(blob, filename); }, 'image/png');
+  }
+
+  function exportChartPNG(key) {
+    const entry = vizData.charts[key];
+    if (!entry || !entry.rows.length) return;
+    downloadCanvas(renderExportCanvas(entry.title, [entry]), `arca_${key}_${exportStamp()}.png`);
+  }
+  function exportAllChartsPNG() {
+    const blocks = vizChartKeys().map(k => vizData.charts[k]).filter(e => e && e.rows.length);
+    if (!blocks.length) return;
+    downloadCanvas(renderExportCanvas('Visualizaciones de la selección', blocks), `arca_tablero_${exportStamp()}.png`);
+  }
+  function exportKpisPNG() {
+    if (!vizData.kpis) return;
+    downloadCanvas(renderExportCanvas('ARCA en cifras', [{ title: 'Resumen de la colección', kpis: vizData.kpis }]),
+      `arca_resumen_${exportStamp()}.png`);
+  }
+
+  document.getElementById('viz-panel').addEventListener('click', e => {
+    const btn = e.target.closest('.viz-btn');
+    if (!btn) return;
+    const card = btn.closest('.viz-card');
+    switch (btn.dataset.export) {
+      case 'csv':      if (card) exportChartCSV(card.dataset.viz); break;
+      case 'png':      if (card) exportChartPNG(card.dataset.viz); break;
+      case 'all-csv':  exportAllChartsCSV(); break;
+      case 'all-png':  exportAllChartsPNG(); break;
+      case 'kpis-csv': exportKpisCSV(); break;
+      case 'kpis-png': exportKpisPNG(); break;
+    }
+  });
 
   function refreshOpenSectionCounts() {
     document.querySelectorAll('.facet-group.open').forEach(group => {
