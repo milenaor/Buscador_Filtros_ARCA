@@ -1014,10 +1014,11 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     });
     M2M_FIELDS.forEach(f => {
       if (!ex.has(f) && state[f].length) {
-        // '_some' es imprescindible al marcar varias opciones de una misma lista:
-        // sin él, Directus junta las condiciones sobre una única fila de la tabla
-        // de unión y exigir dos valores a la vez nunca devuelve nada.
-        state[f].forEach(id => and.push({ [f]: { _some: { [f + '_id']: { _eq: id } } } }));
+        // Dentro de una misma lista las opciones marcadas suman (cualquiera de
+        // ellas); entre listas distintas se acumulan como condiciones separadas.
+        // '_some' evita que Directus exija que una única fila de la tabla de
+        // unión cumpla todas las condiciones a la vez.
+        and.push({ [f]: { _some: { [f + '_id']: { _in: state[f] } } } });
       }
     });
     if (!ex.has('ciudad_origen') && !state.ciudad_origen && state.origenPaisUI) {
