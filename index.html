@@ -337,6 +337,10 @@
     padding: 0.2rem 0; cursor: pointer; color: var(--text) !important;
   }
   .checklist .n { margin-left: auto; color: var(--muted2); font-size: 0.68rem; }
+  /* Checklist como desplegable: se abre al hacer clic en la caja de búsqueda */
+  .facet-dropdown .checklist { display: none; max-height: 190px; }
+  .facet-dropdown .checklist.show { display: block; }
+  .facet-dropdown .checklist .empty { font-size: 0.75rem; color: var(--muted2); padding: 0.2rem 0; }
 
   .geo-link { font-size: 0.7rem; }
   .geo-link a { text-decoration: none; }
@@ -610,37 +614,44 @@
       </button>
       <div class="group-body" id="body-analisis">
 
-        <div class="facet" data-facet="simbolos">
+        <div class="facet facet-dropdown" data-facet="simbolos">
           <label>Símbolos</label>
-          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varios; escribe para filtrar la lista.</p>
-          <input type="text" class="checklist-search" placeholder="Filtrar símbolos&hellip;">
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Haz clic en la caja para ver las opciones; puedes marcar varios.</p>
+          <input type="text" class="checklist-search" placeholder="Buscar símbolo&hellip;" autocomplete="off">
           <div class="checklist"></div>
+          <div class="chips-mini"></div>
         </div>
 
-        <div class="facet" data-facet="caracteristicas">
-          <label>Características particulares</label>
-          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varias.</p>
-          <div class="checklist"></div>
-        </div>
-
-        <div class="facet" data-facet="escenarios">
-          <label>Escenarios</label>
-          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varios.</p>
-          <div class="checklist"></div>
-        </div>
-
-        <div class="facet" data-facet="objetos">
-          <label>Objetos</label>
-          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varios; escribe para filtrar la lista.</p>
-          <input type="text" class="checklist-search" placeholder="Filtrar objetos&hellip;">
-          <div class="checklist"></div>
-        </div>
-
-        <div class="facet" data-facet="descriptores">
+        <div class="facet facet-dropdown" data-facet="descriptores">
           <label>Descriptores</label>
-          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Puedes marcar varios; escribe para filtrar la lista.</p>
-          <input type="text" class="checklist-search" placeholder="Filtrar descriptores&hellip;">
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Haz clic en la caja para ver las opciones; puedes marcar varios.</p>
+          <input type="text" class="checklist-search" placeholder="Buscar descriptor&hellip;" autocomplete="off">
           <div class="checklist"></div>
+          <div class="chips-mini"></div>
+        </div>
+
+        <div class="facet facet-dropdown" data-facet="caracteristicas">
+          <label>Características particulares</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Haz clic en la caja para ver las opciones; puedes marcar varias.</p>
+          <input type="text" class="checklist-search" placeholder="Buscar característica&hellip;" autocomplete="off">
+          <div class="checklist"></div>
+          <div class="chips-mini"></div>
+        </div>
+
+        <div class="facet facet-dropdown" data-facet="escenarios">
+          <label>Escenarios</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Haz clic en la caja para ver las opciones; puedes marcar varios.</p>
+          <input type="text" class="checklist-search" placeholder="Buscar escenario&hellip;" autocomplete="off">
+          <div class="checklist"></div>
+          <div class="chips-mini"></div>
+        </div>
+
+        <div class="facet facet-dropdown" data-facet="objetos">
+          <label>Objetos</label>
+          <p class="facet-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><line x1="12" y1="11" x2="12" y2="16.5"/><line x1="12" y1="7.2" x2="12" y2="7.2"/></svg> Haz clic en la caja para ver las opciones; puedes marcar varios.</p>
+          <input type="text" class="checklist-search" placeholder="Buscar objeto&hellip;" autocomplete="off">
+          <div class="checklist"></div>
+          <div class="chips-mini"></div>
         </div>
 
         <div class="facet" data-facet="relato_visual"><label>Relato visual</label><select></select></div>
@@ -823,7 +834,7 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
   };
   const GROUP_FIELDS = {
     basicos: ['pais','ciudad','ubicacion','ciudad_origen','categoria1','categoria2','categoria3','categoria4','categoria5','categoria6','autores','tecnicas','fecha'],
-    analisis: ['simbolos','caracteristicas','escenarios','objetos','relato_visual','donante','cartela_filacteria','descriptores','personajes'],
+    analisis: ['simbolos','descriptores','caracteristicas','escenarios','objetos','relato_visual','donante','cartela_filacteria','personajes'],
     gestos: ['fisiognomica','fisiognomica_imagen','rostro','tipo_gestual','gesto1','gesto2','gesto3','complejo_gestual'],
   };
 
@@ -1464,13 +1475,17 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
       }));
     }
 
-    input.addEventListener('input', () => {
+    // En personajes se muestran todas las opciones al hacer clic, sin tener que escribir
+    const showAllOnFocus = field === 'personajes';
+
+    function showList() {
       const q = norm(input.value);
-      if (!q) { list.classList.remove('show'); list.innerHTML = ''; return; }
-      const matches = REF[meta.collection]
+      if (!q && !showAllOnFocus) { list.classList.remove('show'); list.innerHTML = ''; return; }
+      let matches = REF[meta.collection]
         .filter(it => !state[field].includes(it.id) && norm(labelOf(it)).includes(q)
-          && (meta.group !== 'basicos' || Number(it.obras_count) > 0))
-        .slice(0, 30);
+          && (meta.group !== 'basicos' || Number(it.obras_count) > 0));
+      if (q) matches = matches.slice(0, 30);
+      else matches.sort((a,b) => labelOf(a).localeCompare(labelOf(b), 'es'));
       list.innerHTML = matches.map(it =>
         `<div data-id="${it.id}"><span>${labelOf(it).replace(/</g,'&lt;')}</span>${it.obras_count != null ? `<span class="n">${it.obras_count}</span>` : ''}</div>`
       ).join('') || `<div style="color:var(--muted2);cursor:default">Sin coincidencias</div>`;
@@ -1481,7 +1496,13 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
         renderChips();
         onFilterChanged();
       }));
-    });
+    }
+
+    input.addEventListener('input', showList);
+    if (showAllOnFocus) {
+      input.addEventListener('focus', showList);
+      input.addEventListener('click', () => { if (!list.classList.contains('show')) showList(); });
+    }
     input.addEventListener('blur', () => setTimeout(() => list.classList.remove('show'), 150));
     renderChips();
   }
@@ -1498,19 +1519,57 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     box.innerHTML = items.map(it =>
       `<label data-name="${norm(it.nombre||'').replace(/"/g,'&quot;')}"><input type="checkbox" value="${it.id}"> ${(it.nombre||'#'+it.id).replace(/</g,'&lt;')}${it.obras_count != null ? `<span class="n">${it.obras_count}</span>` : ''}</label>`
     ).join('');
+    const isDropdown = container.classList.contains('facet-dropdown');
+    const chipsWrap = container.querySelector('.chips-mini');
+
+    // En modo desplegable la lista está oculta, así que lo marcado se muestra como etiquetas
+    function renderChips() {
+      if (!isDropdown || !chipsWrap) return;
+      chipsWrap.innerHTML = state[field].map(id => {
+        const item = maps[meta.collection][id];
+        const name = item ? (item.nombre || '#' + id) : ('#' + id);
+        return `<span class="chip" data-id="${id}">${name.replace(/</g,'&lt;')} <button data-id="${id}">&times;</button></span>`;
+      }).join('');
+      chipsWrap.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        const id = Number(b.dataset.id);
+        state[field] = state[field].filter(x => x !== id);
+        const cb = box.querySelector(`input[value="${id}"]`);
+        if (cb) cb.checked = false;
+        renderChips();
+        onFilterChanged();
+      }));
+    }
+
     box.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
       const id = Number(cb.value);
       if (cb.checked) state[field].push(id);
       else state[field] = state[field].filter(x => x !== id);
+      renderChips();
       onFilterChanged();
     }));
     if (searchInput) {
       searchInput.addEventListener('input', () => {
         const q = norm(searchInput.value);
+        let visible = 0;
         box.querySelectorAll('label').forEach(label => {
-          label.style.display = !q || label.dataset.name.includes(q) ? '' : 'none';
+          const show = !q || label.dataset.name.includes(q);
+          label.style.display = show ? '' : 'none';
+          if (show) visible++;
         });
+        if (isDropdown) {
+          let empty = box.querySelector('.empty');
+          if (!visible && !empty) box.insertAdjacentHTML('beforeend', '<div class="empty">Sin coincidencias</div>');
+          else if (visible && empty) empty.remove();
+          box.classList.add('show');
+        }
       });
+    }
+    if (isDropdown && searchInput) {
+      searchInput.addEventListener('focus', () => box.classList.add('show'));
+      searchInput.addEventListener('click', () => box.classList.add('show'));
+      // Se cierra al hacer clic fuera del filtro (no en blur, para poder marcar varias casillas seguidas)
+      document.addEventListener('click', e => { if (!container.contains(e.target)) box.classList.remove('show'); });
+      searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') { box.classList.remove('show'); searchInput.blur(); } });
     }
   }
 
@@ -2283,6 +2342,7 @@ window.addEventListener('unhandledrejection', e => { document.getElementById('de
     document.querySelectorAll('.checklist input[type=checkbox]').forEach(cb => cb.checked=false);
     document.querySelectorAll('.checklist-search').forEach(inp => inp.value='');
     document.querySelectorAll('.checklist label').forEach(label => label.style.display='');
+    document.querySelectorAll('.checklist .empty').forEach(el => el.remove());
 
     onFilterChanged();
   });
